@@ -1,0 +1,1606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Flair Log">
+<meta name="theme-color" content="#0a0808">
+<link rel="manifest" href="manifest.json">
+<title>Flair · Brew Log</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=DM+Mono:wght@400;500&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  /* Flair: deep black + espresso red */
+  --bg:#0a0808;--bg2:#110d0d;--bg3:#1a1212;--bg4:#221818;
+  --surface:#1e1515;--surface2:#281b1b;
+  --border:rgba(220,60,40,0.14);--border2:rgba(220,60,40,0.28);
+  --red:#C0392B;--red-light:#E05040;--red-dim:#8B2B1E;
+  --red-bg:rgba(192,57,43,0.1);--red-bg2:rgba(192,57,43,0.18);
+  --cream:#F5EAE0;--cream2:#C8B8A8;
+  --text:#F0E8E0;--text2:#A09088;--text3:#605048;
+  --good:#4A9A6A;--good-bg:rgba(74,154,106,0.12);--good-text:#6ABF8A;
+  --warn:#C8A030;--warn-bg:rgba(200,160,48,0.12);--warn-text:#D4BA50;
+  --danger:#C0392B;--danger-bg:rgba(192,57,43,0.12);--danger-text:#E05A4B;
+  --r:10px;--r-lg:16px;--r-xl:22px;
+  --shadow:0 4px 28px rgba(0,0,0,0.6);
+  --mono:'DM Mono',monospace;--sans:'Jost',sans-serif;--serif:'Cormorant Garamond',serif;
+  --tr:0.18s cubic-bezier(0.4,0,0.2,1);
+  /* Safe area insets for iPhone notch/home bar */
+  --sat: env(safe-area-inset-top, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+  --sar: env(safe-area-inset-right, 0px);
+}
+html{
+  height:100%;
+  /* Prevent text size adjustment on orientation change */
+  -webkit-text-size-adjust:100%;
+  text-size-adjust:100%;
+}
+body{
+  font-family:var(--sans);background:var(--bg);color:var(--text);
+  min-height:100vh;min-height:-webkit-fill-available;
+  line-height:1.6;-webkit-font-smoothing:antialiased;
+  /* Prevent overscroll bounce on iOS (keep it on scroll containers) */
+  overscroll-behavior:none;
+  /* Prevent callout on long press */
+  -webkit-touch-callout:none;
+}
+/* Allow scrolling in the main content */
+.main{overscroll-behavior-y:auto;}
+::-webkit-scrollbar{width:3px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px}
+
+/* ── Layout ── */
+.app-shell{display:flex;flex-direction:column;min-height:100vh;min-height:-webkit-fill-available;}
+.header{
+  position:sticky;top:0;z-index:100;
+  height:calc(54px + var(--sat));
+  padding-top:var(--sat);
+  background:rgba(10,8,8,0.96);backdrop-filter:blur(16px);
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+  padding-left:calc(16px + var(--sal));padding-right:calc(16px + var(--sar));
+}
+.logo{font-family:var(--serif);font-size:23px;font-weight:600;color:var(--red-light);display:flex;align-items:center;gap:9px;letter-spacing:0.02em;}
+.logo-mark{width:30px;height:30px;background:var(--red);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;}
+.icon-btn{
+  width:44px;height:44px;border:1px solid var(--border);background:transparent;
+  border-radius:8px;color:var(--text2);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:all var(--tr);touch-action:manipulation;
+}
+.icon-btn:hover{border-color:var(--red);color:var(--red-light)}
+.main{flex:1;padding-bottom:calc(76px + var(--sab))}
+.page{display:none;animation:fadeUp 0.2s ease}
+.page.active{display:block}
+@keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── Bottom nav ── */
+.bottom-nav{
+  position:fixed;bottom:0;left:0;right:0;
+  height:calc(68px + var(--sab));
+  background:rgba(8,6,6,0.97);backdrop-filter:blur(16px);
+  border-top:1px solid var(--border);
+  display:flex;z-index:100;
+  padding-bottom:var(--sab);
+  padding-left:var(--sal);padding-right:var(--sar);
+}
+.nav-item{
+  flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:3px;cursor:pointer;color:var(--text3);
+  font-size:10px;font-weight:500;letter-spacing:0.06em;text-transform:uppercase;
+  transition:color var(--tr);touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+  min-height:44px;/* iOS minimum touch target */
+}
+.nav-item.active{color:var(--red-light)}
+.nav-item svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;}
+
+/* ── Containers ── */
+.container{max-width:600px;margin:0 auto;padding:14px 14px}
+.page-head{max-width:600px;margin:0 auto;padding:20px 14px 4px;}
+.page-head h1{font-family:var(--serif);font-size:30px;font-weight:500;color:var(--cream);line-height:1.15;}
+.page-head p{color:var(--text2);font-size:13px;margin-top:3px}
+
+/* ── Cards ── */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:15px;margin-bottom:10px;}
+.card-title{font-family:var(--serif);font-size:12px;font-weight:500;color:var(--red-light);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:12px;display:flex;align-items:center;gap:8px;}
+.card-title::after{content:'';flex:1;height:1px;background:var(--border)}
+
+/* ── Form ── */
+.form-row{display:grid;gap:10px;margin-bottom:10px}
+.form-row.cols-2{grid-template-columns:1fr 1fr}
+.form-row.cols-3{grid-template-columns:1fr 1fr 1fr}
+.field{display:flex;flex-direction:column;gap:5px}
+.field label{font-size:11px;font-weight:500;letter-spacing:0.07em;text-transform:uppercase;color:var(--text2);}
+.field input,.field select,.field textarea{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:var(--sans);font-size:16px;padding:11px 12px;transition:border-color var(--tr);width:100%;-webkit-appearance:none;-webkit-box-shadow:none;box-shadow:none;}
+.field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--red);background:var(--bg4);}
+.field input::placeholder,.field textarea::placeholder{color:var(--text3)}
+.field select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23A09088' d='M6 8L1 3h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:32px;cursor:pointer;}
+.field select option{background:var(--bg3)}
+.field textarea{resize:vertical;min-height:68px;line-height:1.55}
+.field input[readonly]{color:var(--text2);cursor:default}
+.hint{font-size:11px;color:var(--text3);margin-top:3px;}
+
+/* ── Buttons ── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;font-family:var(--sans);font-size:14px;font-weight:500;letter-spacing:0.04em;border-radius:var(--r);padding:12px 20px;cursor:pointer;transition:all var(--tr);border:none;white-space:nowrap;touch-action:manipulation;-webkit-tap-highlight-color:transparent;min-height:44px;}
+.btn-primary{background:var(--red);color:#fff;}
+.btn-primary:hover{background:var(--red-light)}
+.btn-primary:active{transform:scale(0.97)}
+.btn-ghost{background:transparent;color:var(--text2);border:1px solid var(--border);}
+.btn-ghost:hover{border-color:var(--border2);color:var(--text)}
+.btn-danger{background:transparent;color:var(--danger-text);border:1px solid rgba(192,57,43,0.3);}
+.btn-danger:hover{background:var(--danger-bg)}
+.btn-row{display:flex;gap:8px;justify-content:flex-end;margin-top:14px}
+
+/* ── Drag handle for sortable history ── */
+.drag-handle{
+  width:32px;height:44px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  color:var(--text3);cursor:grab;touch-action:none;
+  font-size:16px;line-height:1;
+}
+.drag-handle:active{cursor:grabbing;}
+.sortable-ghost{opacity:0.4;background:var(--surface2)!important;}
+.sortable-drag{opacity:0.9;box-shadow:var(--shadow);}
+
+/* ── Grind slider ── */
+.grind-hero{background:var(--bg4);border-radius:var(--r);padding:14px 14px 10px;margin-bottom:10px;}
+.grind-num-row{display:flex;align-items:baseline;justify-content:center;gap:4px;margin-bottom:12px}
+.grind-big{font-family:var(--mono);font-size:54px;font-weight:500;color:var(--red-light);line-height:1;}
+.grind-unit{font-size:13px;color:var(--text2);align-self:flex-end;padding-bottom:8px}
+.grind-range-hint{text-align:center;font-size:11px;margin-bottom:10px;min-height:16px;transition:color 0.2s;}
+input[type=range]{-webkit-appearance:none;width:100%;height:4px;background:linear-gradient(to right,var(--red) calc(var(--pct,42.5%)),var(--bg3) calc(var(--pct,42.5%)));border-radius:4px;cursor:pointer;outline:none;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:var(--red);border:3px solid var(--bg);box-shadow:0 0 0 2px var(--red-dim);transition:transform 0.1s;}
+input[type=range]:active::-webkit-slider-thumb{transform:scale(1.2)}
+input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;background:var(--red);border:3px solid var(--bg);cursor:pointer;}
+.grind-tick-row{display:flex;justify-content:space-between;font-size:10px;font-family:var(--mono);color:var(--text3);margin-top:8px;}
+
+/* ── Stars ── */
+.stars{display:flex;gap:3px}
+.star{font-size:26px;cursor:pointer;color:var(--bg4);-webkit-text-stroke:1.5px var(--text3);transition:all 0.1s;user-select:none;}
+.star.lit{color:#D4A01A;-webkit-text-stroke:1px #D4A01A}
+.star:hover{transform:scale(1.15)}
+
+/* ── Verdict banner ── */
+.verdict{border-radius:var(--r);padding:11px 14px;display:flex;align-items:flex-start;gap:9px;font-size:13px;line-height:1.5;border:1px solid;}
+.verdict.good{background:var(--good-bg);border-color:rgba(74,154,106,0.3);color:var(--good-text)}
+.verdict.warn{background:var(--warn-bg);border-color:rgba(200,160,48,0.3);color:var(--warn-text)}
+.verdict.danger{background:var(--danger-bg);border-color:rgba(192,57,43,0.35);color:var(--danger-text)}
+.verdict-icon{font-size:16px;flex-shrink:0;margin-top:1px}
+.verdict strong{display:block;margin-bottom:1px;font-weight:600}
+
+/* ── Chips ── */
+.chip{font-size:11px;font-family:var(--mono);padding:3px 8px;border-radius:20px;border:1px solid var(--border);color:var(--text2);}
+.chip.red{color:var(--red-light);border-color:rgba(192,57,43,0.35);background:rgba(192,57,43,0.08)}
+.chip.green{color:var(--good-text);border-color:rgba(74,154,106,0.3);background:rgba(74,154,106,0.08)}
+.chip.yellow{color:var(--warn-text);border-color:rgba(200,160,48,0.3);background:rgba(200,160,48,0.08)}
+.chip.danger-chip{color:var(--danger-text);border-color:rgba(192,57,43,0.3);background:rgba(192,57,43,0.07)}
+.chip.star-chip{color:#D4A01A;border-color:rgba(212,160,26,0.25)}
+
+/* ── Bean library ── */
+.search-bar{display:flex;gap:8px;margin-bottom:14px;align-items:center;}
+.search-bar input{flex:1;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:var(--sans);font-size:14px;padding:10px 12px 10px 36px;}
+.search-bar input:focus{outline:none;border-color:var(--red)}
+.search-icon{position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:14px;pointer-events:none;color:var(--text3);}
+.search-wrap{position:relative;flex:1}
+.roast-section{margin-bottom:18px;}
+.roast-header{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+.roast-label{font-size:11px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;}
+.roast-count{font-size:11px;color:var(--text3);}
+.roast-divider{flex:1;height:1px;background:var(--border);}
+.rl-light{color:#E8C090}.rl-lmedium{color:#D4A070}.rl-medium{color:#B87840}.rl-mdark{color:#8B5820}.rl-dark{color:#6B3810}.rl-other{color:var(--text2)}
+.bean-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:13px 14px;margin-bottom:8px;cursor:pointer;transition:border-color var(--tr),background var(--tr);display:flex;align-items:flex-start;gap:12px;touch-action:manipulation;-webkit-tap-highlight-color:transparent;}
+.bean-card:hover{border-color:var(--border2);background:var(--surface2)}
+.bean-card:active{transform:scale(0.99)}
+.bc-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;margin-top:4px;}
+.bc-dot.good{background:var(--good-text)}.bc-dot.warn{background:var(--warn-text)}.bc-dot.danger{background:var(--danger-text)}.bc-dot.neutral{background:var(--text3)}
+.bc-left{flex:1;min-width:0}
+.bc-name{font-size:15px;font-weight:500;color:var(--cream);margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.bc-meta{display:flex;flex-wrap:wrap;gap:4px;align-items:center;}
+.bc-right{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0}
+.bc-date{font-size:11px;color:var(--text3);font-family:var(--mono);}
+.bc-stars{font-size:13px;color:#D4A01A}
+.result-chip{display:inline-flex;align-items:center;font-size:11px;font-weight:500;padding:3px 8px;border-radius:20px;border:1px solid;}
+.rc-good{background:rgba(74,154,106,0.1);border-color:rgba(74,154,106,0.4);color:var(--good-text)}
+.rc-warn{background:rgba(200,160,48,0.1);border-color:rgba(200,160,48,0.35);color:var(--warn-text)}
+.rc-danger{background:rgba(192,57,43,0.1);border-color:rgba(192,57,43,0.35);color:var(--danger-text)}
+.rc-neutral{background:var(--bg3);border-color:var(--border);color:var(--text2)}
+.no-beans{text-align:center;padding:44px 16px;color:var(--text3);font-size:14px;line-height:1.7;}
+
+/* ── Grind rec banner ── */
+.grind-rec-card{background:rgba(192,57,43,0.06);border:1px solid rgba(192,57,43,0.25);border-radius:var(--r-lg);padding:14px;margin-bottom:10px;}
+.rec-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.rec-pill{font-size:10px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:var(--red-light);background:rgba(192,57,43,0.12);border:1px solid rgba(192,57,43,0.25);border-radius:20px;padding:3px 10px;}
+.rec-bean{font-size:12px;color:var(--text2);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.rec-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;}
+.rec-box{background:var(--bg4);border-radius:var(--r);padding:12px 10px 10px;text-align:center;border:1px solid transparent;}
+.rec-box.last{border-color:rgba(192,57,43,0.2);}
+.rec-box.best{background:rgba(192,57,43,0.1);border-color:rgba(192,57,43,0.35);}
+.rec-num{font-family:var(--mono);font-size:34px;font-weight:500;line-height:1;}
+.rec-num-last{color:var(--text)}
+.rec-num-best{color:var(--red-light)}
+.rec-stars-row{font-size:12px;color:#D4A01A;margin-top:2px}
+.rec-sub{font-size:10px;color:var(--text3);margin-top:4px;line-height:1.4;}
+.rec-num-small{font-size:18px;padding-top:6px;}
+.spark-section{margin-bottom:10px;}
+.spark-lbl{font-size:10px;color:var(--text3);margin-bottom:4px;display:flex;justify-content:space-between;align-items:center;}
+.spark-legend{display:flex;gap:10px}
+.leg-dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:3px;}
+.sparkline-wrap{height:40px;}
+.apply-btn{width:100%;background:var(--red);color:#fff;border:none;border-radius:var(--r);padding:10px;font-family:var(--sans);font-size:13px;font-weight:600;cursor:pointer;transition:background var(--tr);}
+.apply-btn:hover{background:var(--red-light)}
+
+/* ── Mini rec matrix ── */
+.rec-matrix-title{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:6px;}
+.rec-mini-matrix{display:grid;grid-template-columns:36px repeat(4,1fr);gap:2px;margin-bottom:10px;}
+.rmm-corner,.rmm-col-head{font-size:8px;font-family:var(--mono);color:var(--text3);text-align:center;padding-bottom:3px;}
+.rmm-row-head{display:flex;align-items:center;justify-content:flex-end;font-size:8px;color:var(--text3);text-align:right;padding-right:4px;min-height:38px;}
+.rmm-cell{border-radius:7px;min-height:38px;padding:3px 2px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:8px;text-align:center;}
+.rmm-action{background:rgba(200,160,48,0.08);border:1px solid rgba(200,160,48,0.15);}
+.rmm-good{background:rgba(74,154,106,0.12);border:1px solid rgba(74,154,106,0.25);}
+.rmm-danger{background:rgba(192,57,43,0.08);border:1px solid rgba(192,57,43,0.15);}
+.rmm-cell.has-shots{border-width:1.5px;}
+.rmm-dots{display:flex;flex-wrap:wrap;justify-content:center;gap:1.5px;margin-top:2px;}
+.rmm-dot{width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,0.25);}
+.rmm-dot-good{background:var(--good-text)}.rmm-dot-warn{background:var(--warn-text)}
+.rmm-grind{font-size:8px;font-family:var(--mono);color:rgba(255,255,255,0.4);margin-top:1px;}
+
+/* ── Log matrix ── */
+.log-matrix{display:grid;grid-template-columns:52px repeat(4,1fr);gap:3px;}
+.lm-corner{display:flex;align-items:flex-end;justify-content:flex-end;padding-bottom:4px;padding-right:4px;}
+.lm-col-head{font-size:9px;font-family:var(--mono);color:var(--text3);text-align:center;padding-bottom:5px;line-height:1.3;}
+.lm-row-head{display:flex;align-items:center;justify-content:flex-end;font-size:9px;color:var(--text3);text-align:right;padding-right:5px;line-height:1.3;min-height:56px;}
+.lm-cell{border-radius:var(--r);min-height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;font-size:10px;font-weight:600;line-height:1.25;padding:5px 3px;cursor:pointer;position:relative;transition:transform 0.12s,filter 0.12s;border:1.5px solid transparent;touch-action:manipulation;-webkit-tap-highlight-color:transparent;}
+.lm-action{background:rgba(200,160,48,0.1);color:var(--warn-text);border-color:rgba(200,160,48,0.2)}
+.lm-good{background:rgba(74,154,106,0.14);color:var(--good-text);border-color:rgba(74,154,106,0.3)}
+.lm-danger{background:rgba(192,57,43,0.12);color:var(--danger-text);border-color:rgba(192,57,43,0.2)}
+.lm-cell:hover:not(.lm-danger):not(.lm-sel){filter:brightness(1.2);transform:scale(1.03);}
+.lm-sel.lm-action{background:rgba(200,160,48,0.28);border-color:var(--warn-text);box-shadow:0 0 0 2px rgba(200,160,48,0.25);}
+.lm-sel.lm-good{background:rgba(74,154,106,0.36);border-color:var(--good-text);box-shadow:0 0 0 2px rgba(74,154,106,0.25);}
+.lm-sel.lm-danger{background:rgba(192,57,43,0.3);border-color:var(--danger-text);box-shadow:0 0 0 2px rgba(192,57,43,0.25);}
+.lm-cell-sub{font-size:8.5px;opacity:0.75;margin-top:2px;font-weight:400;}
+.lm-hist{position:absolute;top:3px;right:3px;display:flex;gap:1px;flex-wrap:wrap;justify-content:flex-end;max-width:18px;}
+.lm-dot{width:4px;height:4px;border-radius:50%;background:rgba(255,255,255,0.35);}
+.lm-dot-good{background:var(--good-text)}.lm-dot-warn{background:var(--warn-text)}
+.lm-avg{position:absolute;bottom:3px;right:4px;font-size:8px;font-family:var(--mono);opacity:0.5;}
+.matrix-banner{border-radius:var(--r);padding:10px 13px;display:flex;align-items:flex-start;gap:8px;font-size:13px;line-height:1.45;border:1px solid;margin-top:8px;animation:fadeUp 0.18s ease;}
+.matrix-banner.good{background:var(--good-bg);border-color:rgba(74,154,106,0.3);color:var(--good-text)}
+.matrix-banner.warn{background:var(--warn-bg);border-color:rgba(200,160,48,0.3);color:var(--warn-text)}
+.matrix-banner.danger{background:var(--danger-bg);border-color:rgba(192,57,43,0.35);color:var(--danger-text)}
+.matrix-banner strong{font-weight:600;}
+.exact-toggle{display:flex;align-items:center;gap:7px;cursor:pointer;font-size:12px;color:var(--text2);margin:10px 0 6px;user-select:none;}
+.exact-chevron{font-size:10px;transition:transform 0.2s;color:var(--text3);}
+.exact-toggle.open .exact-chevron{transform:rotate(90deg);}
+.exact-toggle.open{color:var(--red-light);}
+.exact-fields{display:none;padding-top:4px;}
+.exact-fields.open{display:block;}
+
+/* ── Flavor chips ── */
+.flavor-chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px;margin-bottom:8px;}
+.flavor-chip{font-size:11px;padding:6px 10px;border-radius:20px;border:1px solid var(--border);color:var(--text2);cursor:pointer;background:var(--bg3);transition:all var(--tr);touch-action:manipulation;-webkit-tap-highlight-color:transparent;min-height:36px;display:inline-flex;align-items:center;}
+.flavor-chip:hover{border-color:var(--red);color:var(--red-light);}
+.flavor-chip.on{background:rgba(192,57,43,0.14);border-color:rgba(192,57,43,0.4);color:var(--red-light);}
+
+/* ── Prev session card ── */
+.prev-card{background:var(--bg4);border-radius:var(--r);padding:12px;margin-bottom:10px;}
+.prev-card-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+.prev-card-label{font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text2);}
+.prev-shot-row{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);}
+.prev-shot-row:last-child{border-bottom:none;}
+.prev-shot-date{font-size:11px;color:var(--text3);font-family:var(--mono);min-width:52px;}
+.prev-shot-chips{display:flex;gap:4px;flex-wrap:wrap;flex:1;}
+.prev-adjust{font-size:12px;color:var(--text2);background:rgba(192,57,43,0.07);border-left:2px solid var(--red);border-radius:0 var(--r) var(--r) 0;padding:8px 10px;margin-top:8px;line-height:1.5;}
+.same-params-btn{width:100%;background:transparent;border:1px solid var(--border2);color:var(--text2);border-radius:var(--r);padding:8px;font-family:var(--sans);font-size:12px;cursor:pointer;transition:all var(--tr);margin-top:10px;}
+.same-params-btn:hover{border-color:var(--red);color:var(--red-light);}
+
+/* ── History ── */
+.filter-bar{display:flex;gap:8px;margin-bottom:12px;align-items:center;}
+.filter-bar select{flex:1;background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:var(--sans);font-size:13px;padding:8px 28px 8px 12px;border-radius:var(--r);-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23A09088' d='M6 8L1 3h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;cursor:pointer;}
+.shot-count{font-size:12px;color:var(--text3);white-space:nowrap}
+.log-item{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:12px 14px;margin-bottom:8px;transition:border-color var(--tr),background var(--tr);}
+.log-item:hover{border-color:var(--border2)}
+.log-item-inner{display:flex;align-items:flex-start;gap:8px;}
+.log-item-body{flex:1;min-width:0;cursor:pointer;}
+.log-top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:7px}
+.log-bean{font-size:15px;font-weight:500;color:var(--cream);flex:1;line-height:1.3}
+.log-date{font-size:11px;color:var(--text3);font-family:var(--mono);white-space:nowrap;margin-top:2px}
+.log-chips{display:flex;flex-wrap:wrap;gap:5px;}
+.del-btn{width:30px;height:30px;flex-shrink:0;margin-top:1px;background:transparent;border:1px solid transparent;border-radius:8px;color:var(--text3);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;transition:all var(--tr);}
+.del-btn:hover{background:var(--danger-bg);border-color:rgba(192,57,43,0.3);color:var(--danger-text);}
+.empty-state{text-align:center;padding:44px 16px;color:var(--text3);}
+
+/* ── Drawer ── */
+.drawer-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:200;display:none;animation:fadeIn 0.18s ease;}
+.drawer-backdrop.open{display:block}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.drawer{position:fixed;bottom:0;left:0;right:0;max-width:600px;margin:0 auto;background:var(--bg2);border-radius:var(--r-xl) var(--r-xl) 0 0;border:1px solid var(--border);border-bottom:none;z-index:201;max-height:92vh;overflow-y:auto;transform:translateY(100%);transition:transform 0.3s cubic-bezier(0.4,0,0.2,1);}
+.drawer.open{transform:translateY(0)}
+.drawer-handle{width:36px;height:4px;background:var(--border2);border-radius:4px;margin:12px auto 0;}
+.drawer-head{padding:13px 18px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;justify-content:space-between;gap:12px;}
+.drawer-bean{font-family:var(--serif);font-size:22px;font-weight:500;color:var(--cream);flex:1;line-height:1.2;}
+.drawer-close{width:30px;height:30px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;cursor:pointer;color:var(--text2);display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;}
+.drawer-body{padding:13px 18px;display:flex;flex-direction:column;gap:2px}
+.detail-row{display:flex;justify-content:space-between;align-items:baseline;padding:8px 0;border-bottom:1px solid var(--border);gap:12px;}
+.detail-row:last-child{border-bottom:none}
+.detail-key{font-size:12px;color:var(--text2);flex-shrink:0}
+.detail-val{font-size:14px;font-weight:500;color:var(--text);text-align:right}
+.detail-notes{background:var(--bg3);border-radius:var(--r);padding:10px;font-size:13px;color:var(--text2);line-height:1.6;margin-top:3px;}
+.detail-section{font-family:var(--serif);font-size:11px;color:var(--red-dim);letter-spacing:0.09em;text-transform:uppercase;padding:10px 0 2px;}
+.drawer-footer{padding:13px 18px 32px;display:flex;gap:8px}
+
+/* ── Trends ── */
+.stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:11px;}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:13px;text-align:center;}
+.stat-val{font-family:var(--mono);font-size:22px;font-weight:500;color:var(--red-light);}
+.stat-lbl{font-size:10px;color:var(--text3);margin-top:2px;text-transform:uppercase;letter-spacing:0.06em}
+.chart-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:15px;margin-bottom:10px;}
+.chart-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px}
+.chart-title-block .ct{font-family:var(--serif);font-size:17px;color:var(--cream);}
+.chart-title-block .cs{font-size:11px;color:var(--text3);margin-top:2px}
+.chart-legend{display:flex;gap:12px;font-size:11px;color:var(--text3);margin-top:6px;}
+.chart-wrap{height:170px;position:relative}
+.bean-list-item{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);}
+.bean-list-item:last-child{border-bottom:none}
+.bean-dot-sm{width:7px;height:7px;border-radius:50%;background:var(--red);flex-shrink:0;margin-top:4px;}
+.bean-info{flex:1}
+.bean-nm{font-size:13px;font-weight:500;color:var(--cream);margin-bottom:3px;}
+.bean-stats-row{display:flex;flex-wrap:wrap;gap:5px;align-items:center;}
+.good-badge{font-size:10px;color:var(--good-text);background:rgba(74,154,106,0.1);border:1px solid rgba(74,154,106,0.25);border-radius:10px;padding:2px 7px;}
+.bean-spark-wrap{width:70px;height:28px;flex-shrink:0;}
+
+/* ── Guide ── */
+.matrix-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.guide-matrix{min-width:390px;display:grid;grid-template-columns:70px repeat(4,1fr);gap:3px;}
+.gm-corner{display:flex;align-items:flex-end;padding-bottom:4px;}
+.gm-col{font-size:10px;font-family:var(--mono);color:var(--text2);text-align:center;padding-bottom:5px;line-height:1.3;}
+.gm-row{display:flex;align-items:center;justify-content:flex-end;font-size:10px;color:var(--text2);text-align:right;padding-right:7px;line-height:1.3;min-height:58px;}
+.gm-cell{border-radius:var(--r);min-height:58px;display:flex;align-items:center;justify-content:center;text-align:center;font-size:11px;font-weight:500;line-height:1.35;padding:7px 4px;}
+.gm-good{background:rgba(74,154,106,0.16);color:var(--good-text);border:1.5px solid rgba(74,154,106,0.4)}
+.gm-action{background:rgba(200,160,48,0.1);color:var(--warn-text);border:1px solid rgba(200,160,48,0.2)}
+.gm-danger{background:rgba(192,57,43,0.14);color:var(--danger-text);border:1px solid rgba(192,57,43,0.3)}
+.tip-item{display:flex;gap:11px;padding:11px 0;border-bottom:1px solid var(--border);font-size:13px;line-height:1.6;color:var(--text2);}
+.tip-item:last-child{border-bottom:none}
+.tip-icon{font-size:17px;flex-shrink:0;margin-top:1px}
+.tip-text strong{color:var(--cream);display:block;margin-bottom:1px;font-size:14px}
+
+/* ── IO ── */
+.file-area{border:1px dashed var(--border2);border-radius:var(--r);padding:22px;text-align:center;cursor:pointer;transition:border-color var(--tr),background var(--tr);}
+.file-area:hover{border-color:var(--red);background:rgba(192,57,43,0.04)}
+.file-area input[type=file]{display:none}
+.file-area p{font-size:13px;color:var(--text2);margin-top:5px}
+
+/* ── Modal ── */
+.modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.78);z-index:400;display:none;align-items:center;justify-content:center;padding:20px;}
+.modal-backdrop.open{display:flex}
+.modal{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r-xl);padding:22px;max-width:300px;width:100%;box-shadow:var(--shadow);}
+.modal h3{font-family:var(--serif);font-size:20px;color:var(--cream);margin-bottom:7px}
+.modal p{font-size:13px;color:var(--text2);margin-bottom:18px;line-height:1.5}
+.modal-btns{display:flex;gap:8px}
+
+/* ── Toast ── */
+.toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(10px);background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:9px 18px;border-radius:var(--r);font-size:13px;font-weight:500;opacity:0;pointer-events:none;transition:all 0.3s ease;z-index:300;white-space:nowrap;box-shadow:var(--shadow);}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.ok{border-color:rgba(74,154,106,0.4);color:var(--good-text)}
+
+@media(min-width:600px){
+  .bottom-nav,.drawer{left:50%;right:auto;width:600px;}
+  .bottom-nav{transform:translateX(-50%);}
+  .drawer{transform:translateX(-50%) translateY(100%);}
+  .drawer.open{transform:translateX(-50%) translateY(0);}
+  .header{padding-left:calc(max(16px,(100vw - 600px)/2));padding-right:calc(max(16px,(100vw - 600px)/2));}
+}
+/* Ensure adequate spacing on very small screens */
+@media(max-width:380px){
+  .form-row.cols-3{grid-template-columns:1fr 1fr;}
+  .rec-grid{grid-template-columns:1fr 1fr;}
+  .stats-grid{grid-template-columns:1fr 1fr;}
+}
+</style>
+</head>
+<body>
+<div class="app-shell">
+<header class="header">
+  <div class="logo"><div class="logo-mark">☕</div>Flair</div>
+  <button class="icon-btn" onclick="showIOPage()" title="Export / Import">
+    <svg viewBox="0 0 24 24" style="width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round"><polyline points="8 17 12 21 16 17"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.29"/></svg>
+  </button>
+</header>
+<main class="main">
+
+<!-- ═══ LOG ═══ -->
+<div class="page active" id="page-log">
+  <div class="page-head"><h1>Log a Shot</h1><p>Flair Espresso Pro 3</p></div>
+  <div class="container">
+    <!-- Step 1: Bean selection -->
+    <div id="beanStep">
+      <div class="search-bar">
+        <div class="search-wrap">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="beanSearch" placeholder="Search beans…" oninput="filterBeanLibrary(this.value)" autocomplete="off">
+        </div>
+        <button class="btn btn-primary" onclick="showNewBeanForm()" style="padding:10px 14px;flex-shrink:0">+ New</button>
+      </div>
+      <div id="newBeanForm" style="display:none" class="card">
+        <div class="card-title">✦ Add New Bean</div>
+        <div class="field" style="margin-bottom:10px">
+          <label>Bean name / roaster</label>
+          <input type="text" id="beanName" placeholder="e.g. Pacamara Natural — Roots" autocomplete="off">
+        </div>
+        <div class="form-row cols-3" style="margin-bottom:0">
+          <div class="field"><label>Origin</label>
+            <input type="text" id="origin" placeholder="Ethiopia" list="originSuggestions" autocomplete="off">
+            <datalist id="originSuggestions"></datalist>
+          </div>
+          <div class="field"><label>Process</label>
+            <select id="process"><option value="">—</option><option>Washed</option><option>Natural</option><option>Honey</option><option>Anaerobic</option><option>Other</option></select>
+          </div>
+          <div class="field"><label>Roast</label>
+            <select id="roastLevel"><option value="">—</option><option>Light</option><option>L-Medium</option><option>Medium</option><option>M-Dark</option><option>Dark</option></select>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:12px;">
+          <button class="btn btn-ghost" onclick="hideNewBeanForm()" style="flex:1">Cancel</button>
+          <button class="btn btn-primary" onclick="startLoggingNewBean()" style="flex:2">Start Logging →</button>
+        </div>
+      </div>
+      <div id="beanLibrary"></div>
+    </div>
+
+    <!-- Step 2: Log form -->
+    <div id="logForm" style="display:none">
+      <div id="prevSession" style="display:none"></div>
+      <div id="grindRec" style="display:none"></div>
+
+      <div class="card">
+        <div class="card-title">⚙ Grind Size</div>
+        <div class="grind-hero">
+          <div class="grind-num-row">
+            <span class="grind-big" id="grindDisplay">18</span>
+            <span class="grind-unit">/ 40</span>
+          </div>
+          <div class="grind-range-hint" id="grindHint">&nbsp;</div>
+          <input type="range" id="grindSlider" min="1" max="40" value="18" oninput="onGrindChange(this.value)">
+          <div class="grind-tick-row"><span>1 Fine</span><span>10</span><span>20</span><span>30</span><span>40 Coarse</span></div>
+        </div>
+        <div class="field">
+          <label>Grinder / click reference</label>
+          <input type="text" id="grinderRef" placeholder="e.g. 1Zpresso JX-Pro · 3.0.0" list="grinderSuggestions" autocomplete="off">
+          <datalist id="grinderSuggestions"></datalist>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">⚖ Dose & Ratio</div>
+        <div class="form-row cols-3">
+          <div class="field"><label>Dose (g)</label><input type="number" id="dose" placeholder="18" step="0.1" min="0" oninput="calcRatio()"></div>
+          <div class="field"><label>Yield (g)</label><input type="number" id="yield" placeholder="36" step="0.1" min="0" oninput="calcRatio()"></div>
+          <div class="field"><label>Ratio</label><input type="text" id="ratioOut" placeholder="1 : 2" readonly></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">🌡 Pressure & Time</div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:8px;">Tap your result — pressure (columns) × brew time (rows)</div>
+        <div class="log-matrix" id="logMatrix"></div>
+        <div id="matrixVerdict" style="display:none"></div>
+        <div class="exact-toggle" id="exactToggle" onclick="toggleExact()">
+          <span class="exact-chevron">▶</span>
+          <span>Log exact numbers (optional)</span>
+        </div>
+        <div class="exact-fields" id="exactFields">
+          <div class="form-row cols-2" style="margin-bottom:8px">
+            <div class="field">
+              <label>Peak pressure (bar)</label>
+              <input type="number" id="pressure" placeholder="e.g. 7" step="0.5" min="1" max="20" oninput="onPTInput()">
+              <span class="hint">Target 6–9 bar</span>
+            </div>
+            <div class="field">
+              <label>Brew time (sec)</label>
+              <input type="number" id="brewTime" placeholder="e.g. 38" step="1" min="0" max="180" oninput="onPTInput()">
+              <span class="hint">Target 30–45 sec</span>
+            </div>
+          </div>
+          <div class="form-row cols-2">
+            <div class="field"><label>Pre-infusion (sec)</label><input type="number" id="preInfusion" placeholder="0" step="1" min="0" max="30"></div>
+            <div class="field"><label>Temperature (°C)</label><input type="number" id="temp" placeholder="93" step="1" min="60" max="105"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">✦ Taste & Notes</div>
+        <div class="field" style="margin-bottom:12px">
+          <label>Rating</label>
+          <div class="stars" id="starsRow">
+            <span class="star" data-v="1" onclick="setStar(1)">★</span>
+            <span class="star" data-v="2" onclick="setStar(2)">★</span>
+            <span class="star" data-v="3" onclick="setStar(3)">★</span>
+            <span class="star" data-v="4" onclick="setStar(4)">★</span>
+            <span class="star" data-v="5" onclick="setStar(5)">★</span>
+          </div>
+        </div>
+        <div class="field" style="margin-bottom:9px">
+          <label>Tasting notes</label>
+          <div class="flavor-chips" id="flavorChips">
+            <span class="flavor-chip" data-flavor="Chocolate">Chocolate</span>
+            <span class="flavor-chip" data-flavor="Caramel">Caramel</span>
+            <span class="flavor-chip" data-flavor="Nutty">Nutty</span>
+            <span class="flavor-chip" data-flavor="Fruity">Fruity</span>
+            <span class="flavor-chip" data-flavor="Berry">Berry</span>
+            <span class="flavor-chip" data-flavor="Citrus">Citrus</span>
+            <span class="flavor-chip" data-flavor="Floral">Floral</span>
+            <span class="flavor-chip" data-flavor="Bright acidity">Bright acidity</span>
+            <span class="flavor-chip" data-flavor="Low acidity">Low acidity</span>
+            <span class="flavor-chip" data-flavor="Heavy body">Heavy body</span>
+            <span class="flavor-chip" data-flavor="Light body">Light body</span>
+            <span class="flavor-chip" data-flavor="Bitter">Bitter</span>
+            <span class="flavor-chip" data-flavor="Smoky">Smoky</span>
+            <span class="flavor-chip" data-flavor="Winey">Winey</span>
+          </div>
+          <textarea id="tasteNotes" placeholder="Or type your own notes…"></textarea>
+        </div>
+        <div class="field">
+          <label>What to adjust next shot</label>
+          <textarea id="adjustNotes" placeholder="e.g. 1 click finer, lower temp…" style="min-height:50px"></textarea>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-ghost" onclick="clearForm()">← Back</button>
+        <button class="btn btn-primary" onclick="saveShot()">Save Shot</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ HISTORY ═══ -->
+<div class="page" id="page-history">
+  <div class="page-head"><h1>Shot History</h1></div>
+  <div class="container">
+    <div class="filter-bar">
+      <select id="historyFilter" onchange="renderHistory()"><option value="">All beans</option></select>
+      <span class="shot-count" id="shotCount"></span>
+    </div>
+    <div id="logList"></div>
+  </div>
+</div>
+
+<!-- ═══ TRENDS ═══ -->
+<div class="page" id="page-trends">
+  <div class="page-head"><h1>Trends</h1></div>
+  <div class="container">
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-val" id="st-total">0</div><div class="stat-lbl">Shots</div></div>
+      <div class="stat-card"><div class="stat-val" id="st-good-pct">—</div><div class="stat-lbl">Good shots</div></div>
+      <div class="stat-card"><div class="stat-val" id="st-rating">—</div><div class="stat-lbl">Avg rating</div></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-head">
+        <div class="chart-title-block">
+          <div class="ct">Shot quality over time</div>
+          <div class="cs">Rating per shot · rolling avg</div>
+        </div>
+      </div>
+      <div class="chart-wrap"><canvas id="ratingChart"></canvas></div>
+      <div class="chart-legend">
+        <span><span class="leg-dot" style="background:var(--good-text)"></span>Rated (good)</span>
+        <span><span class="leg-dot" style="background:rgba(192,57,43,0.7)"></span>Rated (other)</span>
+        <span style="display:flex;align-items:center;gap:4px"><span style="display:inline-block;width:18px;height:2px;background:var(--red-light);border-radius:2px"></span>7-shot avg</span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">🫘 Bean Grind Intelligence</div>
+      <div id="beanList"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ GUIDE ═══ -->
+<div class="page" id="page-guide">
+  <div class="page-head"><h1>Flair Guide</h1><p>Shot diagnosis & brew tips</p></div>
+  <div class="container">
+    <div class="card">
+      <div class="card-title">📊 Diagnosis Matrix</div>
+      <p style="font-size:12px;color:var(--text3);margin-bottom:12px">Match your peak pressure + brew time to find your fix.</p>
+      <div class="matrix-wrap">
+        <div class="guide-matrix">
+          <div class="gm-corner"><span style="font-size:9px;color:var(--text3)">time↓ / bar→</span></div>
+          <div class="gm-col">1–5 bar</div><div class="gm-col">6–9 bar</div><div class="gm-col">10–12 bar</div><div class="gm-col">&gt;12 bar</div>
+          <div class="gm-row">&gt;45 sec</div>
+          <div class="gm-cell gm-action">↑ More pressure</div><div class="gm-cell gm-action">↗ Grind coarser</div><div class="gm-cell gm-action">↗ Grind coarser</div><div class="gm-cell gm-danger">⚠ Stop &amp; discard</div>
+          <div class="gm-row">30–45 sec<br><strong style="color:var(--red-light)">✓ target</strong></div>
+          <div class="gm-cell gm-action">↙ Grind finer</div><div class="gm-cell gm-good">✓ Perfect zone</div><div class="gm-cell gm-action">↗ Grind coarser</div><div class="gm-cell gm-danger">⚠ Stop &amp; discard</div>
+          <div class="gm-row">&lt;30 sec</div>
+          <div class="gm-cell gm-action">↙ Grind finer</div><div class="gm-cell gm-action">↙ Grind finer</div><div class="gm-cell gm-action">↓ Less pressure</div><div class="gm-cell gm-danger">⚠ Stop &amp; discard</div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">💡 Pro 3 Tips</div>
+      <div>
+        <div class="tip-item"><span class="tip-icon">🎯</span><div class="tip-text"><strong>Target zone</strong>6–9 bar peak · 30–45 sec total. That combination = balanced extraction on the Pro 3.</div></div>
+        <div class="tip-item"><span class="tip-icon">⚙</span><div class="tip-text"><strong>Grind is your main dial</strong>Finer = more resistance = higher pressure + longer time. Adjust 1–2 clicks at a time and log every shot.</div></div>
+        <div class="tip-item"><span class="tip-icon">🌡</span><div class="tip-text"><strong>Temperature by roast</strong>Light → 92–96°C · Medium → 90–93°C · Dark → 88–92°C.</div></div>
+        <div class="tip-item"><span class="tip-icon">💧</span><div class="tip-text"><strong>Pre-infusion</strong>5–10 sec at low pressure before ramping up. Reduces channeling and improves evenness on the Pro 3.</div></div>
+        <div class="tip-item"><span class="tip-icon">🫘</span><div class="tip-text"><strong>New bean?</strong>Start at your last known good grind for that roast level. The app will surface your good-shot zone once you log a few shots.</div></div>
+        <div class="tip-item"><span class="tip-icon">📋</span><div class="tip-text"><strong>Typical Pro 3 parameters</strong>Dose 16–20g · Yield 30–40g · Ratio 1:1.8–1:2.5. WDT before tamping highly recommended.</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ IO ═══ -->
+<div class="page" id="page-io">
+  <div class="page-head"><h1>Export / Import</h1><p>Backup and restore your brew log</p></div>
+  <div class="container">
+    <div class="card">
+      <div class="card-title">📤 Export</div>
+      <p style="font-size:13px;color:var(--text2);margin-bottom:13px;line-height:1.6">Download all shots as JSON. Use to back up or transfer to another device.</p>
+      <button class="btn btn-primary" onclick="exportData()">Download JSON backup</button>
+    </div>
+    <div class="card">
+      <div class="card-title">📥 Import</div>
+      <p style="font-size:13px;color:var(--text2);margin-bottom:13px;line-height:1.6">Restore from a backup. New shots are merged — no duplicates.</p>
+      <label class="file-area" for="importFile">
+        <div style="font-size:30px">📁</div>
+        <p>Tap to choose a JSON file</p>
+        <input type="file" id="importFile" accept=".json" onchange="importData(this)">
+      </label>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--danger-text)">⚠ Danger Zone</div>
+      <p style="font-size:13px;color:var(--text2);margin-bottom:13px;line-height:1.6">Permanently delete all logged shots.</p>
+      <button class="btn btn-danger" onclick="confirmClearAll()">Delete all data</button>
+    </div>
+    <div class="btn-row"><button class="btn btn-ghost" onclick="navTo('log')">← Back</button></div>
+  </div>
+</div>
+
+</main>
+<nav class="bottom-nav">
+  <div class="nav-item active" id="nav-log" onclick="navTo('log')">
+    <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg>
+    <span>Log</span>
+  </div>
+  <div class="nav-item" id="nav-history" onclick="navTo('history')">
+    <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+    <span>History</span>
+  </div>
+  <div class="nav-item" id="nav-trends" onclick="navTo('trends')">
+    <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+    <span>Trends</span>
+  </div>
+  <div class="nav-item" id="nav-guide" onclick="navTo('guide')">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+    <span>Guide</span>
+  </div>
+</nav>
+</div>
+
+<!-- Drawer -->
+<div class="drawer-backdrop" id="drawerBackdrop" onclick="closeDrawer()"></div>
+<div class="drawer" id="drawer">
+  <div class="drawer-handle"></div>
+  <div class="drawer-head"><div class="drawer-bean" id="drawerBean"></div><button class="drawer-close" onclick="closeDrawer()">✕</button></div>
+  <div class="drawer-body" id="drawerBody"></div>
+  <div class="drawer-footer" id="drawerFooter"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="modal-backdrop" id="modalBackdrop">
+  <div class="modal">
+    <h3 id="modalTitle"></h3><p id="modalMsg"></p>
+    <div class="modal-btns">
+      <button class="btn btn-ghost" style="flex:1" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-danger" style="flex:1" id="modalConfirm">Delete</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ════════════════════════════════════════════
+   STATE
+════════════════════════════════════════════ */
+let shots = JSON.parse(localStorage.getItem('flairShots') || '[]');
+let currentRating = 0;
+let chartInst = null;
+let sparkReg = {};
+let _beanStats = null;
+let _quickVerdict = null;
+let _selectedCell = null;
+let _currentBeanShots = [];
+let pendingModal = null;
+
+/* ─── localStorage wrapper with error handling ─── */
+function save() {
+  try {
+    localStorage.setItem('flairShots', JSON.stringify(shots));
+  } catch(e) {
+    // Storage full or private mode — warn once
+    if (!save._warned) {
+      save._warned = true;
+      console.warn('localStorage unavailable:', e.message);
+      toast('Storage warning: data may not persist');
+    }
+  }
+}
+
+/* ════════════════════════════════════════════
+   NAVIGATION
+════════════════════════════════════════════ */
+function navTo(t) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + t).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const ni = document.getElementById('nav-' + t);
+  if (ni) ni.classList.add('active');
+  if (t === 'history') renderHistory();
+  if (t === 'trends')  renderTrends();
+}
+function showIOPage() {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-io').classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+}
+
+/* ════════════════════════════════════════════
+   MATRIX DEFINITIONS
+════════════════════════════════════════════ */
+const M_ROWS = [
+  { key:'long',  label:'>45 sec' },
+  { key:'ok',    label:'30–45s'  },
+  { key:'short', label:'<30 sec' },
+];
+const M_COLS = [
+  { key:'low',    label:'1–5 bar'   },
+  { key:'good',   label:'6–9 bar'   },
+  { key:'high',   label:'10–12 bar' },
+  { key:'danger', label:'>12 bar'   },
+];
+const M_CELLS = {
+  'long-low':    { verdict:'pressure', label:'↑ More\npressure',  cls:'lm-action' },
+  'long-good':   { verdict:'coarse',   label:'↗ Grind\ncoarser',  cls:'lm-action' },
+  'long-high':   { verdict:'coarse',   label:'↗ Grind\ncoarser',  cls:'lm-action' },
+  'long-danger': { verdict:'danger',   label:'⚠ Stop &\ndiscard', cls:'lm-danger' },
+  'ok-low':      { verdict:'fine',     label:'↙ Grind\nfiner',    cls:'lm-action' },
+  'ok-good':     { verdict:'good',     label:'✓ Perfect\nzone',   cls:'lm-good'   },
+  'ok-high':     { verdict:'coarse',   label:'↗ Grind\ncoarser',  cls:'lm-action' },
+  'ok-danger':   { verdict:'danger',   label:'⚠ Stop &\ndiscard', cls:'lm-danger' },
+  'short-low':   { verdict:'fine',     label:'↙ Grind\nfiner',    cls:'lm-action' },
+  'short-good':  { verdict:'fine',     label:'↙ Grind\nfiner',    cls:'lm-action' },
+  'short-high':  { verdict:'pressure', label:'↓ Less\npressure',  cls:'lm-action' },
+  'short-danger':{ verdict:'danger',   label:'⚠ Stop &\ndiscard', cls:'lm-danger' },
+};
+
+/* ─── shotToZone: stored cell key is ground truth; fall back to numbers, then verdict ─── */
+function shotToZone(s) {
+  // 1. Best: the exact cell the user tapped — stored directly
+  if (s.matrixCell && M_CELLS[s.matrixCell]) return s.matrixCell;
+
+  // 2. Derive from actual logged numbers
+  const p = parseFloat(s.pressure), t = parseInt(s.brewTime);
+  let row = null, col = null;
+
+  if (!isNaN(t)) {
+    if (t > 45)       row = 'long';
+    else if (t >= 30) row = 'ok';
+    else if (t > 0)   row = 'short';
+  }
+  if (!isNaN(p)) {
+    if (p > 12)       col = 'danger';
+    else if (p >= 10) col = 'high';
+    else if (p >= 6)  col = 'good';
+    else if (p >= 1)  col = 'low';
+  }
+
+  if (row && col) return `${row}-${col}`;
+
+  // 3. Last resort: infer from quickVerdict (only fills still-missing axis)
+  if (s.quickVerdict === 'good')     { row = row||'ok';    col = col||'good'; }
+  if (s.quickVerdict === 'coarse')   { row = row||'long';  col = col||'good'; }
+  if (s.quickVerdict === 'fine')     { row = row||'short'; col = col||'good'; }
+  if (s.quickVerdict === 'pressure') { row = row||'long';  col = col||'low';  }
+
+  return (row && col) ? `${row}-${col}` : null;
+}
+
+/* ─── verdictInfo: human-readable label from a shot ─── */
+function verdictInfo(s) {
+  // Use stored cell key first — it's the most accurate
+  if (s.matrixCell && M_CELLS[s.matrixCell]) {
+    const v = M_CELLS[s.matrixCell].verdict;
+    const MAP = { good:{cls:'rc-good',label:'✓ Good'}, coarse:{cls:'rc-warn',label:'↗ Too slow'}, fine:{cls:'rc-warn',label:'↙ Too fast'}, pressure:{cls:'rc-warn',label:'↑ Low psi'}, danger:{cls:'rc-danger',label:'⚠ Danger'} };
+    return MAP[v] || {cls:'rc-neutral',label:'—'};
+  }
+  if (s.quickVerdict === 'good')     return { cls:'rc-good',   label:'✓ Good'     };
+  if (s.quickVerdict === 'coarse')   return { cls:'rc-warn',   label:'↗ Too slow' };
+  if (s.quickVerdict === 'fine')     return { cls:'rc-warn',   label:'↙ Too fast' };
+  if (s.quickVerdict === 'pressure') return { cls:'rc-warn',   label:'↑ Low psi'  };
+  if (s.quickVerdict === 'danger')   return { cls:'rc-danger', label:'⚠ Danger'   };
+  const p = parseFloat(s.pressure), t = parseInt(s.brewTime);
+  if (p > 12)                                   return { cls:'rc-danger', label:'⚠ Danger'   };
+  if (p >= 6 && p <= 9 && t >= 30 && t <= 45)  return { cls:'rc-good',   label:'✓ Good'     };
+  if (t > 45)                                   return { cls:'rc-warn',   label:'↗ Too slow' };
+  if (t > 0 && t < 30)                          return { cls:'rc-warn',   label:'↙ Too fast' };
+  if (p > 0 && p < 6)                           return { cls:'rc-warn',   label:'↑ Low psi'  };
+  return { cls:'rc-neutral', label:'—' };
+}
+
+/* ════════════════════════════════════════════
+   BEAN LIBRARY
+════════════════════════════════════════════ */
+const ROAST_ORDER = ['Light','L-Medium','Medium','M-Dark','Dark'];
+const ROAST_CLS   = { 'Light':'rl-light','L-Medium':'rl-lmedium','Medium':'rl-medium','M-Dark':'rl-mdark','Dark':'rl-dark','':'rl-other' };
+
+function getBeans() { return [...new Set(shots.map(s => s.bean))].filter(Boolean); }
+
+function renderBeanLibrary(filter) {
+  const lib = document.getElementById('beanLibrary');
+  const q = (filter||'').toLowerCase().trim();
+  const beans = getBeans().filter(b => !q || b.toLowerCase().includes(q));
+
+  if (!beans.length) {
+    lib.innerHTML = `<div class="no-beans">☕<br>No beans${q?' found':' logged yet'}.<br><span style="font-size:13px">Tap <strong style="color:var(--red-light)">+ New</strong> to add your first bean.</span></div>`;
+    return;
+  }
+
+  // Build bean summaries
+  const summaries = beans.map(b => {
+    const bs = shots.filter(s => s.bean === b);
+    const last = bs[0];
+    const roast = last?.roastLevel || '';
+    const rated = bs.filter(s => s.rating > 0);
+    const avgRating = rated.length ? rated.reduce((a,s)=>a+s.rating,0)/rated.length : 0;
+    const lastDate = new Date(last.date);
+    const v = verdictInfo(last);
+    return { name:b, last, roast, avgRating, lastDate, v, shots:bs.length, origin:last?.origin||'', process:last?.process||'' };
+  });
+
+  // Group + sort
+  const groups = {};
+  [...ROAST_ORDER,''].forEach(r => groups[r]=[]);
+  summaries.forEach(s => groups[ROAST_ORDER.includes(s.roast)?s.roast:''].push(s));
+  Object.values(groups).forEach(g => g.sort((a,b) => (b.avgRating-a.avgRating)||(b.lastDate-a.lastDate)));
+
+  lib.innerHTML = '';
+  [...ROAST_ORDER,''].forEach(roast => {
+    const items = groups[roast];
+    if (!items.length) return;
+    const label = roast || 'Unspecified roast';
+    const sec = document.createElement('div');
+    sec.className = 'roast-section';
+    sec.innerHTML = `<div class="roast-header"><span class="roast-label ${ROAST_CLS[roast]||'rl-other'}">${label}</span><span class="roast-count">${items.length}</span><div class="roast-divider"></div></div>`;
+    items.forEach(b => {
+      const stars = b.avgRating > 0 ? '★'.repeat(Math.round(b.avgRating)) : '';
+      const days = Math.floor((Date.now()-b.lastDate)/86400000);
+      const when = days===0?'Today':days===1?'Yesterday':days+'d ago';
+      const card = document.createElement('div');
+      card.className = 'bean-card';
+      card.innerHTML = `
+        <div class="bc-dot ${b.v.cls.replace('rc-','')}"></div>
+        <div class="bc-left">
+          <div class="bc-name">${b.name}</div>
+          <div class="bc-meta">
+            ${b.process?`<span class="chip" style="font-size:10px">${b.process}</span>`:''}
+            ${b.origin?`<span class="chip" style="font-size:10px">${b.origin}</span>`:''}
+            <span class="result-chip ${b.v.cls}" style="font-size:10px;padding:2px 7px">${b.v.label}</span>
+            <span class="chip" style="font-size:10px">${b.shots} shot${b.shots!==1?'s':''}</span>
+          </div>
+        </div>
+        <div class="bc-right">
+          <span class="bc-date">${when}</span>
+          ${stars?`<span class="bc-stars">${stars}</span>`:''}
+        </div>`;
+      card.onclick = () => selectBean(b.name);
+      sec.appendChild(card);
+    });
+    lib.appendChild(sec);
+  });
+}
+function filterBeanLibrary(val) { renderBeanLibrary(val); }
+
+function showNewBeanForm() { document.getElementById('newBeanForm').style.display='block'; document.getElementById('beanName').focus(); }
+function hideNewBeanForm() {
+  document.getElementById('newBeanForm').style.display='none';
+  ['beanName','origin'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  document.getElementById('process').value='';
+  document.getElementById('roastLevel').value='';
+}
+
+function selectBean(name) {
+  document.getElementById('beanName').value = name;
+  startLogging();
+}
+function startLoggingNewBean() {
+  const name = document.getElementById('beanName').value.trim();
+  if (!name) { toast('Enter a bean name first'); return; }
+  startLogging();
+}
+
+/* ════════════════════════════════════════════
+   START LOGGING
+════════════════════════════════════════════ */
+function startLogging() {
+  const name = document.getElementById('beanName').value.trim();
+  if (!name) { toast('Enter a bean name first'); return; }
+
+  document.getElementById('beanStep').style.display = 'none';
+  document.getElementById('logForm').style.display = 'block';
+
+  const bShots = shots.filter(s => s.bean === name);
+  _currentBeanShots = bShots;
+
+  // Populate datalist suggestions
+  const origins  = [...new Set(shots.map(s=>s.origin).filter(Boolean))];
+  const grinders = [...new Set(shots.map(s=>s.grinderRef).filter(Boolean))];
+  const odl = document.getElementById('originSuggestions');
+  const gdl = document.getElementById('grinderSuggestions');
+  odl.innerHTML = origins.map(o=>`<option value="${o}">`).join('');
+  gdl.innerHTML = grinders.map(g=>`<option value="${g}">`).join('');
+
+  const stats = getBeanStats(name);
+  _beanStats = stats;
+
+  if (bShots.length) {
+    const last = bShots[0];
+    // Pre-fill bean metadata from last shot
+    if (last.origin)     document.getElementById('origin').value = last.origin;
+    if (last.process)    document.getElementById('process').value = last.process;
+    if (last.roastLevel) document.getElementById('roastLevel').value = last.roastLevel;
+
+    // Pre-fill grind (best rated, else last)
+    const recGrind = stats?.bestRated ? stats.bestRated.grind : last.grind;
+    document.getElementById('grindSlider').value = recGrind;
+    onGrindChange(recGrind);
+
+    // Show previous session recap
+    const prevEl = document.getElementById('prevSession');
+    renderPrevSession(name, bShots, prevEl, last);
+    prevEl.style.display = 'block';
+
+    // Show grind rec
+    if (stats) showGrindRec(name, stats);
+  }
+
+  buildLogMatrix(bShots);
+  window.scrollTo(0,0);
+}
+
+function renderPrevSession(name, bShots, container, last) {
+  const rows = bShots.slice(0,5).map(s => {
+    const v = verdictInfo(s);
+    const d = new Date(s.date).toLocaleDateString('en-GB',{day:'2-digit',month:'short'});
+    const st = s.rating ? '★'.repeat(s.rating) : '';
+    return `<div class="prev-shot-row">
+      <span class="prev-shot-date">${d}</span>
+      <div class="prev-shot-chips">
+        <span class="result-chip ${v.cls}">${v.label}</span>
+        ${s.grind?`<span class="chip red" style="font-size:11px">g${s.grind}</span>`:''}
+        ${s.pressure?`<span class="chip" style="font-size:11px">${s.pressure}b</span>`:''}
+        ${s.brewTime?`<span class="chip" style="font-size:11px">${s.brewTime}s</span>`:''}
+        ${s.temp?`<span class="chip" style="font-size:11px">${s.temp}°C</span>`:''}
+        ${st?`<span class="chip star-chip" style="font-size:11px">${st}</span>`:''}
+      </div>
+    </div>`;
+  }).join('');
+
+  const adjustNote = last.adjustNotes
+    ? `<div class="prev-adjust">📝 Next time: ${last.adjustNotes}</div>` : '';
+
+  // "Same as last time" quick-fill button
+  const sameBtn = `<button class="same-params-btn" onclick="fillSameAsLast(${last.id})">↩ Use last shot's parameters</button>`;
+
+  container.innerHTML = `<div class="prev-card">
+    <div class="prev-card-head">
+      <span class="prev-card-label">Previous sessions</span>
+      <span class="bc-date">${bShots.length} shot${bShots.length!==1?'s':''}</span>
+    </div>
+    ${rows}
+    ${adjustNote}
+    ${sameBtn}
+  </div>`;
+}
+
+function fillSameAsLast(id) {
+  const s = shots.find(x => x.id === id);
+  if (!s) return;
+  if (s.grind) { document.getElementById('grindSlider').value = s.grind; onGrindChange(s.grind); }
+  if (s.grinderRef) document.getElementById('grinderRef').value = s.grinderRef;
+  if (s.dose)       document.getElementById('dose').value = s.dose;
+  if (s.yield)      document.getElementById('yield').value = s.yield;
+  if (s.temp)       document.getElementById('temp').value = s.temp;
+  if (s.dose && s.yield) calcRatio();
+  toast('Parameters copied ↩', true);
+}
+
+/* ════════════════════════════════════════════
+   BEAN STATS + GRIND REC
+════════════════════════════════════════════ */
+function isGoodShot(s) {
+  if (s.matrixCell) return s.matrixCell === 'ok-good';
+  if (s.quickVerdict === 'good')   return true;
+  if (s.quickVerdict && s.quickVerdict !== 'good') return false;
+  const p = parseFloat(s.pressure), t = parseInt(s.brewTime);
+  return p >= 6 && p <= 9 && t >= 30 && t <= 45;
+}
+
+function getBeanStats(name) {
+  const bs = shots.filter(s => s.bean === name && s.grind);
+  if (!bs.length) return null;
+  const good = bs.filter(isGoodShot);
+  const last = bs[0];
+  const rated = bs.filter(s => s.rating > 0).sort((a,b) => (b.rating-a.rating)||(b.id-a.id));
+  const bestRated = rated[0] || null;
+  let goodRange = null;
+  if (good.length) {
+    const gs = good.map(s=>s.grind);
+    goodRange = { min:Math.min(...gs), max:Math.max(...gs), avg:Math.round(gs.reduce((a,b)=>a+b,0)/gs.length), count:good.length };
+  }
+  const timeline = [...bs].reverse().slice(-12).map(s => ({ grind:s.grind, good:isGoodShot(s) }));
+  return { last, bestRated, goodRange, timeline, total:bs.length, goodCount:good.length };
+}
+
+function showGrindRec(name, stats) {
+  const { last, bestRated, timeline } = stats;
+  const rec = bestRated ? bestRated.grind : last.grind;
+  const sid = 'sp' + Date.now();
+  const bShots = shots.filter(s => s.bean === name);
+
+  // Best-rated box
+  const bestStars = bestRated?.rating ? '★'.repeat(bestRated.rating) : '';
+  const bestBox = bestRated
+    ? `<div class="rec-box best">
+        <div class="rec-num rec-num-best">${bestRated.grind}</div>
+        ${bestStars?`<div class="rec-stars-row">${bestStars}</div>`:''}
+        <div class="rec-sub">best rated · ${fmtDate(bestRated.date)}</div>
+      </div>`
+    : `<div class="rec-box best"><div class="rec-num rec-num-small" style="color:var(--text3)">—</div><div class="rec-sub">no rated shots yet</div></div>`;
+
+  // Mini matrix with per-zone history
+  const cellData = {};
+  bShots.forEach(s => {
+    const z = shotToZone(s); if (!z) return;
+    if (!cellData[z]) cellData[z] = { shots:[], gSum:0, gCnt:0 };
+    cellData[z].shots.push(s);
+    if (s.grind) { cellData[z].gSum+=s.grind; cellData[z].gCnt++; }
+  });
+
+  let mmHtml = `<div class="rec-mini-matrix">
+    <div class="rmm-corner"></div>`;
+  M_COLS.forEach(c => { mmHtml += `<div class="rmm-col-head">${c.label.replace(' bar','b')}</div>`; });
+  M_ROWS.forEach(row => {
+    mmHtml += `<div class="rmm-row-head">${row.label}</div>`;
+    M_COLS.forEach(col => {
+      const key = `${row.key}-${col.key}`;
+      const def = M_CELLS[key];
+      const cd = cellData[key];
+      const baseC = def.cls === 'lm-good' ? 'rmm-good' : def.cls === 'lm-danger' ? 'rmm-danger' : 'rmm-action';
+      const hasCls = cd ? ' has-shots' : '';
+      const avgG = cd?.gCnt ? Math.round(cd.gSum/cd.gCnt) : null;
+      const dotCls = def.cls==='lm-good' ? 'rmm-dot-good' : 'rmm-dot-warn';
+      const dots = cd ? '<div class="rmm-dots">'+Array.from({length:Math.min(cd.shots.length,4)}).map(()=>`<div class="rmm-dot ${dotCls}"></div>`).join('')+'</div>' : `<span style="font-size:7px;opacity:0.3">${def.label.split('\n')[0]}</span>`;
+      mmHtml += `<div class="rmm-cell ${baseC}${hasCls}">${dots}${avgG?`<div class="rmm-grind">g${avgG}</div>`:''}</div>`;
+    });
+  });
+  mmHtml += '</div>';
+
+  document.getElementById('grindRec').innerHTML = `
+    <div class="grind-rec-card">
+      <div class="rec-head">
+        <span class="rec-pill">📍 Recommendation</span>
+        <span class="rec-bean">${name}</span>
+      </div>
+      <div class="rec-grid">
+        <div class="rec-box last">
+          <div class="rec-num rec-num-last">${last.grind}</div>
+          <div class="rec-sub">last used · ${fmtDate(last.date)}</div>
+        </div>
+        ${bestBox}
+      </div>
+      <div class="rec-matrix-title">Shot history by zone</div>
+      ${mmHtml}
+      <div class="spark-section">
+        <div class="spark-lbl">
+          <span>Grind trend — last ${timeline.length} shots</span>
+          <div class="spark-legend">
+            <span><span class="leg-dot" style="background:var(--good-text)"></span>good</span>
+            <span><span class="leg-dot" style="background:rgba(192,57,43,0.7)"></span>other</span>
+          </div>
+        </div>
+        <div class="sparkline-wrap"><canvas id="${sid}"></canvas></div>
+      </div>
+      <button class="apply-btn" onclick="applyGrind(${rec})">Start at grind ${rec} →</button>
+    </div>`;
+  document.getElementById('grindRec').style.display = 'block';
+  setTimeout(() => drawSpark(sid, timeline), 20);
+}
+
+function drawSpark(id, timeline) {
+  const canvas = document.getElementById(id); if (!canvas) return;
+  if (sparkReg[id]) sparkReg[id].destroy();
+  sparkReg[id] = new Chart(canvas.getContext('2d'), {
+    type: 'line',
+    data: {
+      labels: timeline.map((_,i)=>i+1),
+      datasets:[{
+        data: timeline.map(t=>t.grind),
+        borderColor:'rgba(192,57,43,0.45)',backgroundColor:'rgba(192,57,43,0.05)',
+        pointBackgroundColor: timeline.map(t=>t.good?'var(--good-text)':'rgba(192,57,43,0.7)'),
+        pointRadius:4,pointHoverRadius:5,tension:0.35,fill:true,borderWidth:1.5,
+      }]
+    },
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>'Grind '+ctx.raw+(timeline[ctx.dataIndex].good?' ✓':'')}}},scales:{y:{display:false},x:{display:false}}}
+  });
+}
+
+function applyGrind(v) {
+  document.getElementById('grindSlider').value = v;
+  onGrindChange(v);
+  toast('Grind set to ' + v, true);
+}
+
+/* ════════════════════════════════════════════
+   GRIND SLIDER
+════════════════════════════════════════════ */
+function onGrindChange(v) {
+  document.getElementById('grindDisplay').textContent = v;
+  const pct = ((v-1)/39*100).toFixed(1)+'%';
+  document.getElementById('grindSlider').style.setProperty('--pct', pct);
+  updateGrindHint(parseInt(v));
+}
+function updateGrindHint(val) {
+  const hint = document.getElementById('grindHint');
+  const gr = _beanStats?.goodRange;
+  if (!gr) { hint.textContent='\u00a0'; hint.style.color=''; return; }
+  if (val >= gr.min && val <= gr.max) {
+    hint.textContent=`✓ In your good-shot range for this bean (${gr.min}${gr.min!==gr.max?'–'+gr.max:''})`;
+    hint.style.color='var(--good-text)';
+  } else if (val < gr.min) {
+    hint.textContent=`→ Try coarser — good range starts at ${gr.min}`;
+    hint.style.color='var(--warn-text)';
+  } else {
+    hint.textContent=`→ Try finer — good range up to ${gr.max}`;
+    hint.style.color='var(--warn-text)';
+  }
+}
+
+/* ════════════════════════════════════════════
+   LOG MATRIX
+════════════════════════════════════════════ */
+function buildLogMatrix(bShots) {
+  const matrix = document.getElementById('logMatrix');
+  if (!matrix) return;
+
+  const cellCounts = {}, cellGrindData = {};
+  (bShots||[]).forEach(s => {
+    const z = shotToZone(s); if (!z) return;
+    cellCounts[z] = (cellCounts[z]||0)+1;
+    if (s.grind) { if (!cellGrindData[z]) cellGrindData[z]={sum:0,cnt:0}; cellGrindData[z].sum+=s.grind; cellGrindData[z].cnt++; }
+  });
+
+  let html = `<div class="lm-corner"><span style="font-size:8px;color:var(--text3)">time↓ / bar→</span></div>`;
+  M_COLS.forEach(c => { html += `<div class="lm-col-head">${c.label}</div>`; });
+  M_ROWS.forEach(row => {
+    html += `<div class="lm-row-head">${row.label}</div>`;
+    M_COLS.forEach(col => {
+      const key = `${row.key}-${col.key}`;
+      const def = M_CELLS[key];
+      const cnt = cellCounts[key]||0;
+      const isSel = _selectedCell === key;
+      const selCls = isSel ? ' lm-sel' : '';
+      const avgG = cellGrindData[key] ? Math.round(cellGrindData[key].sum/cellGrindData[key].cnt) : null;
+      const dotCls = def.cls==='lm-good' ? 'lm-dot-good' : 'lm-dot-warn';
+      const dots = cnt>0 ? `<div class="lm-hist">${Array.from({length:Math.min(cnt,4)}).map(()=>`<div class="lm-dot ${dotCls}"></div>`).join('')}</div>` : '';
+      const lines = def.label.split('\n');
+      html += `<div class="lm-cell ${def.cls}${selCls}" data-k="${key}">
+        ${dots}
+        <div>${lines[0]}</div>
+        ${lines[1]?`<div class="lm-cell-sub">${lines[1]}</div>`:''}
+        ${avgG&&!isSel?`<div class="lm-avg">g${avgG}</div>`:''}
+      </div>`;
+    });
+  });
+  matrix.innerHTML = html;
+  matrix.onclick = e => {
+    const cell = e.target.closest('[data-k]');
+    if (cell) selectMatrixCell(cell.dataset.k);
+  };
+}
+
+function selectMatrixCell(key) {
+  _selectedCell = (_selectedCell===key) ? null : key;
+  _quickVerdict = _selectedCell ? M_CELLS[_selectedCell].verdict : null;
+  buildLogMatrix(_currentBeanShots);
+
+  const vBox = document.getElementById('matrixVerdict');
+  if (!_selectedCell) { vBox.style.display='none'; return; }
+  const MSGS = {
+    good:     { cls:'good',   icon:'✓', title:'Espresso made right!',   body:'6–9 bar · 30–45 sec — perfect extraction zone.' },
+    coarse:   { cls:'warn',   icon:'↗', title:'Grind coarser next time', body:'Shot ran too slow. Go 1–2 clicks coarser.' },
+    fine:     { cls:'warn',   icon:'↙', title:'Grind finer next time',   body:'Shot ran too fast. Go 1–2 clicks finer.' },
+    pressure: { cls:'warn',   icon:'↑', title:'Add more pressure',       body:'Pressure too low. Press harder next time.' },
+    danger:   { cls:'danger', icon:'⚠', title:'Stop & discard!',         body:'Pressure exceeded safe limit. Discard grounds immediately.' },
+  };
+  const v = MSGS[_quickVerdict];
+  vBox.innerHTML = `<div class="matrix-banner ${v.cls}"><span style="font-size:16px;flex-shrink:0">${v.icon}</span><div><strong>${v.title}</strong><br><span style="font-size:12px;opacity:0.85">${v.body}</span></div></div>`;
+  vBox.style.display = 'block';
+}
+
+function toggleExact() {
+  document.getElementById('exactToggle').classList.toggle('open');
+  document.getElementById('exactFields').classList.toggle('open');
+}
+function onPTInput() {
+  const p = parseFloat(document.getElementById('pressure').value)||0;
+  const t = parseInt(document.getElementById('brewTime').value)||0;
+  if (!p || !t) return;
+  const rk = t>45?'long':t>=30?'ok':t>0?'short':null;
+  const ck = p>12?'danger':p>=10?'high':p>=6?'good':p>=1?'low':null;
+  if (rk && ck) { const k=`${rk}-${ck}`; if (_selectedCell!==k) selectMatrixCell(k); }
+}
+
+/* ════════════════════════════════════════════
+   FORM HELPERS
+════════════════════════════════════════════ */
+function calcRatio() {
+  const d=parseFloat(document.getElementById('dose').value), y=parseFloat(document.getElementById('yield').value);
+  document.getElementById('ratioOut').value = (d&&y) ? '1 : '+(y/d).toFixed(1) : '';
+}
+function setStar(v) {
+  currentRating = v;
+  document.querySelectorAll('.star').forEach(s=>s.classList.toggle('lit',parseInt(s.dataset.v)<=v));
+}
+
+// Flavor chips use event delegation on #flavorChips
+document.addEventListener('DOMContentLoaded', () => {
+  const fc = document.getElementById('flavorChips');
+  if (fc) fc.addEventListener('click', e => {
+    const chip = e.target.closest('.flavor-chip');
+    if (!chip) return;
+    chip.classList.toggle('on');
+    const flavor = chip.dataset.flavor;
+    const ta = document.getElementById('tasteNotes');
+    let parts = ta.value ? ta.value.split(/,\s*/).map(t=>t.trim()).filter(Boolean) : [];
+    if (chip.classList.contains('on')) { if (!parts.includes(flavor)) parts.push(flavor); }
+    else parts = parts.filter(t=>t!==flavor);
+    ta.value = parts.join(', ');
+  });
+});
+
+function getVerdictFromShot(s) {
+  if (s.matrixCell && M_CELLS[s.matrixCell]) {
+    const v = M_CELLS[s.matrixCell].verdict;
+    const M = { good:{type:'good',title:'Good shot',msg:'6–9 bar · 30–45 sec.'}, coarse:{type:'warn',title:'Grind coarser',msg:'Too slow.'}, fine:{type:'warn',title:'Grind finer',msg:'Too fast.'}, pressure:{type:'warn',title:'Low / high psi',msg:'Adjust pressure.'}, danger:{type:'danger',title:'Danger',msg:'Pressure too high.'} };
+    return M[v]||null;
+  }
+  if (s.quickVerdict) {
+    const m = { good:{type:'good',title:'Good shot',msg:'6–9 bar · 30–45 sec.'}, coarse:{type:'warn',title:'Grind coarser',msg:'Too slow.'}, fine:{type:'warn',title:'Grind finer',msg:'Too fast.'}, pressure:{type:'warn',title:'Low pressure',msg:'Needed more force.'}, danger:{type:'danger',title:'Danger',msg:'Pressure too high.'} };
+    return m[s.quickVerdict]||null;
+  }
+  const p=parseFloat(s.pressure)||0, t=parseInt(s.brewTime)||0;
+  if (!p&&!t) return null;
+  if (p>12)           return {type:'danger',title:'Danger',msg:'Pressure exceeded 12 bar.'};
+  const tZ=t>45?'long':t>=30?'ok':t>0?'short':null;
+  const pZ=p>=6&&p<=9?'ok':p>0&&p<6?'low':p>9?'high':null;
+  if (tZ==='ok'&&pZ==='ok')   return {type:'good',title:'Good shot',msg:'6–9 bar · 30–45 sec.'};
+  if (tZ==='long')             return {type:'warn',title:'Grind coarser',msg:'Brew time '+t+'s too long.'};
+  if (tZ==='short'&&pZ==='high') return {type:'warn',title:'Less pressure',msg:p+' bar too high.'};
+  if (tZ==='short')            return {type:'warn',title:'Grind finer',msg:'Brew time '+t+'s too short.'};
+  if (pZ==='high')             return {type:'warn',title:'Grind coarser',msg:p+' bar too high.'};
+  if (pZ==='low')              return {type:'warn',title:'Low pressure',msg:p+' bar too low.'};
+  return null;
+}
+
+/* ════════════════════════════════════════════
+   SAVE + CLEAR
+════════════════════════════════════════════ */
+function saveShot() {
+  const bean = document.getElementById('beanName').value.trim();
+  if (!bean) { toast('Please enter a bean name'); return; }
+  shots.unshift({
+    id:Date.now(), date:new Date().toISOString(), bean,
+    origin:document.getElementById('origin').value.trim(),
+    process:document.getElementById('process').value,
+    roastLevel:document.getElementById('roastLevel').value,
+    grind:parseInt(document.getElementById('grindSlider').value),
+    grinderRef:document.getElementById('grinderRef').value.trim(),
+    dose:document.getElementById('dose').value,
+    yield:document.getElementById('yield').value,
+    pressure:document.getElementById('pressure').value,
+    brewTime:document.getElementById('brewTime').value,
+    preInfusion:document.getElementById('preInfusion').value,
+    temp:document.getElementById('temp').value,
+    quickVerdict:_quickVerdict,
+    matrixCell:_selectedCell,
+    rating:currentRating,
+    tasteNotes:document.getElementById('tasteNotes').value.trim(),
+    adjustNotes:document.getElementById('adjustNotes').value.trim(),
+  });
+  save();
+  toast('Shot saved!', true);
+  clearForm();
+}
+
+function clearForm() {
+  document.getElementById('beanStep').style.display='block';
+  document.getElementById('logForm').style.display='none';
+  document.getElementById('newBeanForm').style.display='none';
+  document.getElementById('prevSession').style.display='none';
+  document.getElementById('beanSearch').value='';
+  ['beanName','origin','grinderRef','dose','yield','ratioOut','tasteNotes','adjustNotes','preInfusion','temp','pressure','brewTime']
+    .forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  document.getElementById('process').value='';
+  document.getElementById('roastLevel').value='';
+  document.getElementById('grindSlider').value=18;
+  onGrindChange(18);
+  currentRating=0;
+  document.querySelectorAll('.star').forEach(s=>s.classList.remove('lit'));
+  document.querySelectorAll('.flavor-chip').forEach(c=>c.classList.remove('on'));
+  _quickVerdict=null; _selectedCell=null; _currentBeanShots=[]; _beanStats=null;
+  const mv=document.getElementById('matrixVerdict'); if(mv)mv.style.display='none';
+  const et=document.getElementById('exactToggle'); if(et)et.classList.remove('open');
+  const ef=document.getElementById('exactFields'); if(ef)ef.classList.remove('open');
+  document.getElementById('grindRec').style.display='none';
+  document.getElementById('grindHint').textContent='\u00a0';
+  renderBeanLibrary();
+  window.scrollTo(0,0);
+}
+
+/* ════════════════════════════════════════════
+   HISTORY
+════════════════════════════════════════════ */
+function renderHistory() {
+  const sel=document.getElementById('historyFilter');
+  const cur=sel.value;
+  sel.innerHTML='<option value="">All beans</option>';
+  getBeans().forEach(b=>{const o=document.createElement('option');o.value=b;o.textContent=b;sel.appendChild(o);});
+  if(cur)sel.value=cur;
+
+  const filter=sel.value;
+  const filtered=filter?shots.filter(s=>s.bean===filter):shots;
+  document.getElementById('shotCount').textContent=filtered.length+' shot'+(filtered.length!==1?'s':'');
+  const list=document.getElementById('logList');
+  if(!filtered.length){list.innerHTML=`<div class="empty-state" style="color:var(--text3);font-size:14px">☕<br>No shots yet. Pull your first shot!</div>`;return;}
+  list.innerHTML='';
+  filtered.forEach(s=>{
+    const v=getVerdictFromShot(s);
+    const d=new Date(s.date);
+    const dateStr=d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'2-digit'})+' · '+d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+    const vCls=v?({good:'green',warn:'yellow',danger:'danger-chip'}[v.type]):'';
+    const vLabel=v?({good:'Good',warn:'Adjust',danger:'Danger'}[v.type]):'';
+    const st=s.rating?'★'.repeat(s.rating):'';
+    const item=document.createElement('div');
+    item.className='log-item';
+    item.dataset.id = s.id;
+    item.innerHTML=`<div class="log-item-inner">
+      <div class="drag-handle" title="Drag to reorder">⠿</div>
+      <div class="log-item-body">
+        <div class="log-top"><div class="log-bean">${s.bean}</div><div class="log-date">${dateStr}</div></div>
+        <div class="log-chips">
+          <span class="chip red">g${s.grind}</span>
+          ${s.pressure?`<span class="chip">${s.pressure}b</span>`:''}
+          ${s.brewTime?`<span class="chip">${s.brewTime}s</span>`:''}
+          ${v?`<span class="chip ${vCls}">${vLabel}</span>`:''}
+          ${s.roastLevel?`<span class="chip">${s.roastLevel}</span>`:''}
+          ${st?`<span class="chip star-chip">${st}</span>`:''}
+        </div>
+      </div>
+      <button class="del-btn" data-id="${s.id}" title="Delete">✕</button>
+    </div>`;
+    item.querySelector('.log-item-body').onclick = ()=>openDrawer(s.id);
+    item.querySelector('.del-btn').onclick = e=>{e.stopPropagation();quickDelete(s.id);};
+    list.appendChild(item);
+  });
+
+  // Drag & drop reordering via SortableJS
+  if (window.Sortable) {
+    if (list._sortable) list._sortable.destroy();
+    list._sortable = new Sortable(list, {
+      handle: '.drag-handle',
+      animation: 150,
+      ghostClass: 'sortable-ghost',
+      dragClass: 'sortable-drag',
+      onEnd() {
+        // Read the new order from the DOM
+        const newOrderIds = [...list.querySelectorAll('.log-item[data-id]')]
+          .map(el => parseInt(el.dataset.id))
+          .filter(Boolean);
+
+        const filter = document.getElementById('historyFilter').value;
+
+        if (!filter) {
+          // No filter — full reorder
+          const idToShot = new Map(shots.map(s => [s.id, s]));
+          const reordered = newOrderIds.map(id => idToShot.get(id)).filter(Boolean);
+          const unshown = shots.filter(s => !newOrderIds.includes(s.id));
+          shots = [...reordered, ...unshown];
+        } else {
+          // Filtered — only reorder within the shown bean group;
+          // slots for other beans stay in their original relative positions
+          const idToShot = new Map(shots.map(s => [s.id, s]));
+          const reorderedGroup = newOrderIds.map(id => idToShot.get(id)).filter(Boolean);
+          // Rebuild: replace the old group positions with the new order
+          let groupIdx = 0;
+          shots = shots.map(s => {
+            if (s.bean === filter) {
+              return reorderedGroup[groupIdx++] || s;
+            }
+            return s;
+          });
+        }
+        save();
+      }
+    });
+  }
+}
+
+function quickDelete(id) {
+  shots=shots.filter(s=>s.id!==id);
+  save(); renderHistory(); renderBeanLibrary(); toast('Shot deleted');
+}
+
+/* ════════════════════════════════════════════
+   DRAWER
+════════════════════════════════════════════ */
+function openDrawer(id) {
+  const s=shots.find(x=>x.id===id); if(!s) return;
+  document.getElementById('drawerBean').textContent=s.bean;
+  const v=getVerdictFromShot(s);
+  const d=new Date(s.date);
+  const ratio=(s.dose&&s.yield)?'1:'+(parseFloat(s.yield)/parseFloat(s.dose)).toFixed(1):'—';
+  const stars=s.rating?'★'.repeat(s.rating)+'☆'.repeat(5-s.rating):'—';
+  const icons={good:'✓',warn:'⚠',danger:'⛔'};
+  let html='';
+  if(v)html+=`<div class="verdict ${v.type}" style="margin-bottom:6px"><div class="verdict-icon">${icons[v.type]}</div><div><strong>${v.title}</strong>${v.msg}</div></div>`;
+  html+=`<div class="detail-section">Bean</div>`;
+  [['Date',d.toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})],['Origin',s.origin||'—'],['Process',s.process||'—'],['Roast',s.roastLevel||'—']].forEach(([k,v2])=>{html+=dr(k,v2);});
+  html+=`<div class="detail-section">Extraction</div>`;
+  [['Grind',s.grind],s.grinderRef?['Grinder',s.grinderRef]:null,['Dose',s.dose?s.dose+'g':'—'],['Yield',s.yield?s.yield+'g':'—'],['Ratio',ratio],['Pressure',s.pressure?s.pressure+' bar':'—'],['Brew time',s.brewTime?s.brewTime+'s':'—'],s.preInfusion?['Pre-infusion',s.preInfusion+'s']:null,s.temp?['Temp',s.temp+'°C']:null].filter(Boolean).forEach(([k,v2])=>{html+=dr(k,v2);});
+  html+=`<div class="detail-section">Taste</div>`;
+  html+=dr('Rating',stars);
+  if(s.tasteNotes)html+=`<div class="detail-notes">${s.tasteNotes}</div>`;
+  if(s.adjustNotes)html+=`<div class="detail-section">Next adjustment</div><div class="detail-notes" style="border-left:2px solid var(--red);background:rgba(192,57,43,0.06)">${s.adjustNotes}</div>`;
+  document.getElementById('drawerBody').innerHTML=html;
+  document.getElementById('drawerFooter').innerHTML=`<button class="btn btn-ghost" style="flex:1" onclick="closeDrawer()">Close</button><button class="btn btn-danger" style="flex:1" onclick="confirmDelete(${id})">Delete</button>`;
+  document.getElementById('drawerBackdrop').classList.add('open');
+  setTimeout(()=>document.getElementById('drawer').classList.add('open'),10);
+}
+function dr(k,v){return `<div class="detail-row"><span class="detail-key">${k}</span><span class="detail-val">${v}</span></div>`;}
+function closeDrawer(){document.getElementById('drawer').classList.remove('open');document.getElementById('drawerBackdrop').classList.remove('open');}
+
+/* ════════════════════════════════════════════
+   TRENDS
+════════════════════════════════════════════ */
+function renderTrends() {
+  const sorted = [...shots].reverse();
+  document.getElementById('st-total').textContent = shots.length;
+  const goodCount = shots.filter(isGoodShot).length;
+  document.getElementById('st-good-pct').textContent = shots.length ? Math.round(goodCount/shots.length*100)+'%' : '—';
+  const rated = shots.filter(s=>s.rating>0);
+  document.getElementById('st-rating').textContent = rated.length ? (rated.reduce((a,s)=>a+s.rating,0)/rated.length).toFixed(1)+'★' : '—';
+
+  const canvas = document.getElementById('ratingChart');
+  if (chartInst) { chartInst.destroy(); chartInst=null; }
+  if (sorted.length) {
+    const ratingData = sorted.map(s=>s.rating>0?s.rating:null);
+    const rollingAvg = sorted.map((_,i)=>{
+      const win=sorted.slice(Math.max(0,i-6),i+1).filter(s=>s.rating>0);
+      return win.length ? parseFloat((win.reduce((a,s)=>a+s.rating,0)/win.length).toFixed(2)) : null;
+    });
+    const ptColors = sorted.map(s=>s.rating>0?(isGoodShot(s)?'var(--good-text)':'rgba(192,57,43,0.8)'):'rgba(192,57,43,0.3)');
+    chartInst = new Chart(canvas.getContext('2d'), {
+      type:'line',
+      data:{
+        labels:sorted.map(s=>new Date(s.date).toLocaleDateString('en-GB',{day:'2-digit',month:'short'})),
+        datasets:[
+          {label:'Rating',data:ratingData,borderColor:'transparent',backgroundColor:'transparent',pointBackgroundColor:ptColors,pointRadius:sorted.map(s=>s.rating>0?5:3),pointHoverRadius:7,tension:0,fill:false,borderWidth:0,spanGaps:false},
+          {label:'7-avg',data:rollingAvg,borderColor:'rgba(192,57,43,0.65)',backgroundColor:'rgba(192,57,43,0.06)',pointRadius:0,pointHoverRadius:4,tension:0.4,fill:true,borderWidth:2,spanGaps:true}
+        ]
+      },
+      options:{
+        responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>{const s=sorted[ctx.dataIndex];if(ctx.datasetIndex===1)return '7-avg: '+(ctx.raw!=null?ctx.raw.toFixed(1)+'★':'—');return (s.rating>0?s.rating+'★':'No rating')+' · '+s.bean+(isGoodShot(s)?' ✓':'');  }}}},
+        scales:{
+          y:{min:0,max:5.5,ticks:{color:'var(--text3)',stepSize:1,font:{size:11},callback:v=>v>0&&v<=5?'★'.repeat(v):''},grid:{color:'rgba(255,255,255,0.04)'},border:{display:false}},
+          x:{ticks:{color:'var(--text3)',font:{size:10},maxRotation:0,autoSkip:true,maxTicksLimit:7},grid:{display:false},border:{display:false}}
+        }
+      }
+    });
+  }
+
+  // Bean grind intelligence list
+  const bl=document.getElementById('beanList');
+  const beans=getBeans();
+  if(!beans.length){bl.innerHTML='<p style="font-size:13px;color:var(--text3);padding:6px 0">Log some shots to see bean stats.</p>';return;}
+  bl.innerHTML='';
+  beans.slice(0,10).forEach((b,idx)=>{
+    const stats=getBeanStats(b); if(!stats) return;
+    const {last,goodRange,total,goodCount:gc}=stats;
+    const rs=goodRange?(goodRange.min===goodRange.max?String(goodRange.min):goodRange.min+'–'+goodRange.max):null;
+    const sid='bs'+idx+Date.now();
+    const row=document.createElement('div'); row.className='bean-list-item';
+    row.innerHTML=`<div class="bean-dot-sm"></div>
+      <div class="bean-info">
+        <div class="bean-nm">${b}</div>
+        <div class="bean-stats-row">
+          <span class="chip red" style="font-size:11px">g${last.grind}</span>
+          ${rs?`<span class="good-badge">✓ ${rs}</span>`:'<span style="font-size:11px;color:var(--text3)">no good shots yet</span>'}
+          <span style="font-size:11px;color:var(--text3)">${total} · ${gc} good</span>
+        </div>
+      </div>
+      <div class="bean-spark-wrap"><canvas id="${sid}"></canvas></div>`;
+    bl.appendChild(row);
+    setTimeout(()=>drawSpark(sid,stats.timeline),30);
+  });
+}
+
+/* ════════════════════════════════════════════
+   CRUD / MODAL
+════════════════════════════════════════════ */
+function confirmDelete(id){
+  showModal('Delete this shot?','This cannot be undone.',()=>{shots=shots.filter(s=>s.id!==id);save();closeDrawer();renderHistory();toast('Shot deleted');});
+}
+function confirmClearAll(){
+  showModal('Delete ALL data?','Permanently delete all '+shots.length+' shots.',()=>{shots=[];save();toast('All data cleared');});
+}
+function showModal(title,msg,fn){
+  document.getElementById('modalTitle').textContent=title;
+  document.getElementById('modalMsg').textContent=msg;
+  pendingModal=fn;
+  document.getElementById('modalBackdrop').classList.add('open');
+  document.getElementById('modalConfirm').onclick=()=>{pendingModal&&pendingModal();closeModal();};
+}
+function closeModal(){document.getElementById('modalBackdrop').classList.remove('open');pendingModal=null;}
+
+/* ════════════════════════════════════════════
+   EXPORT / IMPORT
+════════════════════════════════════════════ */
+function exportData(){
+  if(!shots.length){toast('No data to export');return;}
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([JSON.stringify(shots,null,2)],{type:'application/json'}));
+  a.download='flair-brew-log-'+new Date().toISOString().slice(0,10)+'.json';
+  a.click(); toast('Exported!',true);
+}
+function importData(input){
+  const file=input.files[0]; if(!file) return;
+  const r=new FileReader();
+  r.onload=e=>{
+    try{
+      const imp=JSON.parse(e.target.result);
+      if(!Array.isArray(imp)) throw 0;
+      const ids=new Set(shots.map(s=>s.id));
+      const newS=imp.filter(s=>!ids.has(s.id));
+      shots=[...shots,...newS].sort((a,b)=>b.id-a.id);
+      save(); renderBeanLibrary(); toast(newS.length+' shots imported!',true); input.value='';
+    }catch{toast('Import failed — invalid file');}
+  };
+  r.readAsText(file);
+}
+
+/* ════════════════════════════════════════════
+   UTILITY
+════════════════════════════════════════════ */
+function fmtDate(iso){return new Date(iso).toLocaleDateString('en-GB',{day:'2-digit',month:'short'});}
+function toast(msg,ok=false){
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.className='toast'+(ok?' ok':'');
+  el.classList.add('show'); setTimeout(()=>el.classList.remove('show'),2400);
+}
+
+/* ════════════════════════════════════════════
+   INIT
+════════════════════════════════════════════ */
+renderBeanLibrary();
+onGrindChange(18);
+</script>
+</body>
+</html>
