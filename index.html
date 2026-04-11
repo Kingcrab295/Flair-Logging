@@ -8,7 +8,6 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Flair Log">
 <meta name="theme-color" content="#0a0808">
-<link rel="manifest" href="manifest.json">
 <title>Flair · Brew Log</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=DM+Mono:wght@400;500&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
@@ -397,11 +396,64 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;bac
   .drawer.open{transform:translateX(-50%) translateY(0);}
   .header{padding-left:calc(max(16px,(100vw - 600px)/2));padding-right:calc(max(16px,(100vw - 600px)/2));}
 }
-/* Ensure adequate spacing on very small screens */
 @media(max-width:380px){
   .form-row.cols-3{grid-template-columns:1fr 1fr;}
   .rec-grid{grid-template-columns:1fr 1fr;}
   .stats-grid{grid-template-columns:1fr 1fr;}
+}
+
+/* ── Bean photo ── */
+.bean-photo-wrap{position:relative;flex-shrink:0;}
+.bean-photo{
+  width:52px;height:52px;border-radius:var(--r);
+  object-fit:cover;display:block;
+  border:1px solid var(--border2);
+}
+.bean-photo-placeholder{
+  width:52px;height:52px;border-radius:var(--r);
+  background:var(--bg4);border:1.5px dashed var(--border2);
+  display:flex;align-items:center;justify-content:center;
+  font-size:22px;cursor:pointer;transition:border-color var(--tr);
+  touch-action:manipulation;
+}
+.bean-photo-placeholder:hover{border-color:var(--red);}
+.bean-photo-input{display:none;}
+
+/* ── Bean profile sheet ── */
+.bean-profile-photo{
+  width:100%;height:180px;object-fit:cover;
+  border-radius:var(--r-lg) var(--r-lg) 0 0;
+  display:block;
+}
+.bean-profile-photo-empty{
+  width:100%;height:120px;
+  background:var(--bg3);
+  border-radius:var(--r-lg) var(--r-lg) 0 0;
+  display:flex;align-items:center;justify-content:center;
+  font-size:40px;color:var(--text3);
+}
+.bean-profile-edit-photo{
+  position:absolute;bottom:8px;right:8px;
+  background:rgba(10,8,8,0.8);border:1px solid var(--border2);
+  color:var(--text);border-radius:var(--r);padding:5px 10px;
+  font-size:12px;cursor:pointer;touch-action:manipulation;
+  font-family:var(--sans);
+}
+
+/* ── Roast date badge ── */
+.roast-age-badge{
+  font-size:10px;padding:2px 7px;border-radius:20px;
+  border:1px solid;white-space:nowrap;
+}
+.roast-fresh{background:rgba(74,154,106,0.1);border-color:rgba(74,154,106,0.35);color:var(--good-text);}
+.roast-good{background:rgba(200,160,48,0.1);border-color:rgba(200,160,48,0.3);color:var(--warn-text);}
+.roast-old{background:rgba(192,57,43,0.1);border-color:rgba(192,57,43,0.3);color:var(--danger-text);}
+
+/* ── Bean notes field ── */
+.bean-notes-preview{
+  font-size:12px;color:var(--text2);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  max-width:180px;
 }
 </style>
 </head>
@@ -430,11 +482,22 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;bac
       </div>
       <div id="newBeanForm" style="display:none" class="card">
         <div class="card-title">✦ Add New Bean</div>
-        <div class="field" style="margin-bottom:10px">
-          <label>Bean name / roaster</label>
-          <input type="text" id="beanName" placeholder="e.g. Pacamara Natural — Roots" autocomplete="off">
+
+        <!-- Photo upload row -->
+        <div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:12px;">
+          <div class="bean-photo-wrap" id="newBeanPhotoWrap">
+            <div class="bean-photo-placeholder" onclick="document.getElementById('newBeanPhotoInput').click()" title="Add photo">📷</div>
+            <input type="file" id="newBeanPhotoInput" class="bean-photo-input" accept="image/*" onchange="previewNewBeanPhoto(this)">
+          </div>
+          <div style="flex:1">
+            <div class="field">
+              <label>Bean name / roaster</label>
+              <input type="text" id="beanName" placeholder="e.g. Pacamara Natural — Roots" autocomplete="off">
+            </div>
+          </div>
         </div>
-        <div class="form-row cols-3" style="margin-bottom:0">
+
+        <div class="form-row cols-3" style="margin-bottom:10px">
           <div class="field"><label>Origin</label>
             <input type="text" id="origin" placeholder="Ethiopia" list="originSuggestions" autocomplete="off">
             <datalist id="originSuggestions"></datalist>
@@ -446,7 +509,21 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;bac
             <select id="roastLevel"><option value="">—</option><option>Light</option><option>L-Medium</option><option>Medium</option><option>M-Dark</option><option>Dark</option></select>
           </div>
         </div>
-        <div style="display:flex;gap:8px;margin-top:12px;">
+        <div class="form-row cols-2" style="margin-bottom:10px">
+          <div class="field">
+            <label>Roast date (optional)</label>
+            <input type="date" id="newBeanRoastDate">
+          </div>
+          <div class="field">
+            <label>Price / 100g (optional)</label>
+            <input type="number" id="newBeanPrice" placeholder="e.g. 350" step="1" min="0">
+          </div>
+        </div>
+        <div class="field" style="margin-bottom:12px">
+          <label>Bean notes (optional)</label>
+          <textarea id="newBeanNotes" placeholder="Roaster tasting notes, where you bought it…" style="min-height:52px"></textarea>
+        </div>
+        <div style="display:flex;gap:8px;">
           <button class="btn btn-ghost" onclick="hideNewBeanForm()" style="flex:1">Cancel</button>
           <button class="btn btn-primary" onclick="startLoggingNewBean()" style="flex:2">Start Logging →</button>
         </div>
@@ -487,7 +564,13 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;bac
       </div>
 
       <div class="card">
-        <div class="card-title">🌡 Pressure & Time</div>
+        <div class="card-title" style="justify-content:space-between">
+          <span>🌡 Pressure & Time</span>
+          <div id="timerDisplay" style="font-family:var(--mono);font-size:14px;color:var(--text2);display:flex;align-items:center;gap:8px">
+            <span id="timerVal">0:00</span>
+            <button id="timerBtn" onclick="toggleTimer()" style="background:var(--bg4);border:1px solid var(--border2);color:var(--text);border-radius:8px;padding:4px 10px;font-size:11px;font-family:var(--sans);cursor:pointer;touch-action:manipulation;min-height:32px">▶ Start</button>
+          </div>
+        </div>
         <div style="font-size:11px;color:var(--text3);margin-bottom:8px;">Tap your result — pressure (columns) × brew time (rows)</div>
         <div class="log-matrix" id="logMatrix"></div>
         <div id="matrixVerdict" style="display:none"></div>
@@ -718,19 +801,38 @@ let _quickVerdict = null;
 let _selectedCell = null;
 let _currentBeanShots = [];
 let pendingModal = null;
+let _activeBeanProfile = null;
+let _timerInterval = null;
+let _timerStart = null;
+let _timerRunning = false;
+
+// Bean-level metadata: photos, notes, roast date — keyed by bean name
+let beanMeta = JSON.parse(localStorage.getItem('flairBeanMeta') || '{}');
 
 /* ─── localStorage wrapper with error handling ─── */
 function save() {
   try {
     localStorage.setItem('flairShots', JSON.stringify(shots));
   } catch(e) {
-    // Storage full or private mode — warn once
     if (!save._warned) {
       save._warned = true;
       console.warn('localStorage unavailable:', e.message);
       toast('Storage warning: data may not persist');
     }
   }
+}
+function saveMeta() {
+  try {
+    localStorage.setItem('flairBeanMeta', JSON.stringify(beanMeta));
+    // Warn if total storage is getting large (photos can fill it fast)
+    const total = (localStorage.getItem('flairShots')||'').length +
+                  (localStorage.getItem('flairBeanMeta')||'').length;
+    if (total > 3_000_000 && !saveMeta._warnedSize) {
+      saveMeta._warnedSize = true;
+      toast('Storage nearly full — export a backup soon');
+    }
+  }
+  catch(e) { console.warn('saveMeta failed:', e.message); toast('Storage full — export a backup'); }
 }
 
 /* ════════════════════════════════════════════
@@ -879,13 +981,29 @@ function renderBeanLibrary(filter) {
     sec.className = 'roast-section';
     sec.innerHTML = `<div class="roast-header"><span class="roast-label ${ROAST_CLS[roast]||'rl-other'}">${label}</span><span class="roast-count">${items.length}</span><div class="roast-divider"></div></div>`;
     items.forEach(b => {
+      const meta = beanMeta[b.name] || {};
       const stars = b.avgRating > 0 ? '★'.repeat(Math.round(b.avgRating)) : '';
       const days = Math.floor((Date.now()-b.lastDate)/86400000);
       const when = days===0?'Today':days===1?'Yesterday':days+'d ago';
+
+      // Roast age badge
+      let roastAgeBadge = '';
+      if (meta.roastDate) {
+        const roastDays = Math.floor((Date.now() - new Date(meta.roastDate)) / 86400000);
+        const ageCls = roastDays <= 14 ? 'roast-fresh' : roastDays <= 30 ? 'roast-good' : 'roast-old';
+        const ageLabel = roastDays <= 0 ? 'Just roasted' : roastDays + 'd since roast';
+        roastAgeBadge = `<span class="roast-age-badge ${ageCls}">${ageLabel}</span>`;
+      }
+
+      // Photo
+      const photoHtml = meta.photo
+        ? `<img class="bean-photo" src="${meta.photo}" alt="${b.name}">`
+        : `<div class="bc-dot ${b.v.cls.replace('rc-','')}"></div>`;
+
       const card = document.createElement('div');
       card.className = 'bean-card';
       card.innerHTML = `
-        <div class="bc-dot ${b.v.cls.replace('rc-','')}"></div>
+        ${photoHtml}
         <div class="bc-left">
           <div class="bc-name">${b.name}</div>
           <div class="bc-meta">
@@ -893,13 +1011,19 @@ function renderBeanLibrary(filter) {
             ${b.origin?`<span class="chip" style="font-size:10px">${b.origin}</span>`:''}
             <span class="result-chip ${b.v.cls}" style="font-size:10px;padding:2px 7px">${b.v.label}</span>
             <span class="chip" style="font-size:10px">${b.shots} shot${b.shots!==1?'s':''}</span>
+            ${roastAgeBadge}
           </div>
+          ${meta.notes?`<div class="bean-notes-preview">${meta.notes}</div>`:''}
         </div>
         <div class="bc-right">
           <span class="bc-date">${when}</span>
           ${stars?`<span class="bc-stars">${stars}</span>`:''}
+          <button class="icon-btn bean-edit-btn" title="Edit bean" style="width:32px;height:32px;margin-top:4px;flex-shrink:0">
+            <svg viewBox="0 0 24 24" style="width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg>
+          </button>
         </div>`;
-      card.onclick = () => selectBean(b.name);
+      card.querySelector('.bc-left').addEventListener('click', () => selectBean(b.name));
+      card.querySelector('.bean-edit-btn').addEventListener('click', e => { e.stopPropagation(); openBeanProfile(b.name); });
       sec.appendChild(card);
     });
     lib.appendChild(sec);
@@ -907,12 +1031,19 @@ function renderBeanLibrary(filter) {
 }
 function filterBeanLibrary(val) { renderBeanLibrary(val); }
 
-function showNewBeanForm() { document.getElementById('newBeanForm').style.display='block'; document.getElementById('beanName').focus(); }
+function showNewBeanForm() {
+  document.getElementById('newBeanForm').style.display='block';
+  document.getElementById('beanName').focus();
+}
 function hideNewBeanForm() {
   document.getElementById('newBeanForm').style.display='none';
-  ['beanName','origin'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['beanName','origin','newBeanNotes','newBeanPrice'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   document.getElementById('process').value='';
   document.getElementById('roastLevel').value='';
+  document.getElementById('newBeanRoastDate').value='';
+  // Reset photo preview
+  const wrap = document.getElementById('newBeanPhotoWrap');
+  if (wrap) wrap.innerHTML = `<div class="bean-photo-placeholder" onclick="document.getElementById('newBeanPhotoInput').click()" title="Add photo">📷</div><input type="file" id="newBeanPhotoInput" class="bean-photo-input" accept="image/*" onchange="previewNewBeanPhoto(this)">`;
 }
 
 function selectBean(name) {
@@ -922,7 +1053,167 @@ function selectBean(name) {
 function startLoggingNewBean() {
   const name = document.getElementById('beanName').value.trim();
   if (!name) { toast('Enter a bean name first'); return; }
+  // Save bean-level metadata
+  if (!beanMeta[name]) beanMeta[name] = {};
+  const photo = document.getElementById('newBeanPhotoWrap').querySelector('img');
+  if (photo) beanMeta[name].photo = photo.src;
+  const notes = document.getElementById('newBeanNotes').value.trim();
+  if (notes) beanMeta[name].notes = notes;
+  const roastDate = document.getElementById('newBeanRoastDate').value;
+  if (roastDate) beanMeta[name].roastDate = roastDate;
+  const price = document.getElementById('newBeanPrice').value;
+  if (price) beanMeta[name].price = parseFloat(price);
+  saveMeta();
   startLogging();
+}
+
+/* ── Photo preview in new bean form ── */
+function previewNewBeanPhoto(input) {
+  const file = input.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    // Resize to max 400px to keep localStorage usage low
+    const img = new Image();
+    img.onload = () => {
+      const MAX = 400;
+      const scale = Math.min(MAX/img.width, MAX/img.height, 1);
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+      const wrap = document.getElementById('newBeanPhotoWrap');
+      wrap.innerHTML = `<img class="bean-photo" src="${dataUrl}" style="width:52px;height:52px;cursor:pointer" onclick="document.getElementById('newBeanPhotoInput').click()"><input type="file" id="newBeanPhotoInput" class="bean-photo-input" accept="image/*" onchange="previewNewBeanPhoto(this)">`;
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+/* ── Bean profile drawer ── */
+function openBeanProfile(name) {
+  _activeBeanProfile = name;
+  const meta = beanMeta[name] || {};
+  const bs = shots.filter(s => s.bean === name);
+  const stats = getBeanStats(name);
+
+  const photoSection = meta.photo
+    ? `<div style="position:relative"><img class="bean-profile-photo" src="${meta.photo}" alt="bean"><button class="bean-profile-edit-photo" onclick="document.getElementById('bpPhotoInput').click()">Change photo</button></div>`
+    : `<div class="bean-profile-photo-empty" style="position:relative">☕<button class="bean-profile-edit-photo" onclick="document.getElementById('bpPhotoInput').click()">Add photo</button></div>`;
+
+  const roastDays = meta.roastDate ? Math.floor((Date.now()-new Date(meta.roastDate))/86400000) : null;
+  const ageCls = roastDays === null ? '' : roastDays <= 14 ? 'roast-fresh' : roastDays <= 30 ? 'roast-good' : 'roast-old';
+  const ageLabel = roastDays === null ? '' : roastDays <= 0 ? 'Just roasted' : roastDays + ' days since roast';
+
+  document.getElementById('drawerBean').textContent = name;
+  document.getElementById('drawerBody').innerHTML = `
+    ${photoSection}
+    <input type="file" id="bpPhotoInput" class="bean-photo-input" accept="image/*">
+
+    <div style="padding:14px 0 0">
+      <div class="detail-section">Bean details</div>
+      <div style="display:flex;flex-direction:column;gap:10px;padding:8px 0">
+        <div class="field"><label>Bean notes / description</label>
+          <textarea id="bpNotes" style="min-height:72px">${meta.notes||''}</textarea>
+        </div>
+        <div class="form-row cols-2">
+          <div class="field"><label>Roast date</label>
+            <input type="date" id="bpRoastDate" value="${meta.roastDate||''}">
+          </div>
+          <div class="field"><label>Price / 100g</label>
+            <input type="number" id="bpPrice" placeholder="e.g. 350" value="${meta.price||''}">
+          </div>
+        </div>
+        ${roastDays !== null ? `<span class="roast-age-badge ${ageCls}" style="align-self:flex-start">${ageLabel}</span>` : ''}
+      </div>
+      <div class="detail-section">Shot summary</div>
+      <div class="detail-row"><span class="detail-key">Total shots</span><span class="detail-val">${bs.length}</span></div>
+      ${stats ? `<div class="detail-row"><span class="detail-key">Good shots</span><span class="detail-val">${stats.goodCount} / ${stats.total}</span></div>` : ''}
+      ${stats?.goodRange ? `<div class="detail-row"><span class="detail-key">Good grind range</span><span class="detail-val">${stats.goodRange.min}–${stats.goodRange.max}</span></div>` : ''}
+      ${stats?.bestRated ? `<div class="detail-row"><span class="detail-key">Best grind</span><span class="detail-val">${stats.bestRated.grind} · ${'★'.repeat(stats.bestRated.rating)}</span></div>` : ''}
+    </div>`;
+
+  // Wire up photo input via addEventListener — no inline onclick with name
+  document.getElementById('bpPhotoInput').addEventListener('change', function() {
+    updateBeanPhoto(_activeBeanProfile, this);
+  });
+
+  document.getElementById('drawerFooter').innerHTML = `
+    <button class="btn btn-danger" style="flex:1" onclick="confirmDeleteBean()">Delete bean</button>
+    <button class="btn btn-ghost" style="flex:1" onclick="closeDrawer()">Cancel</button>
+    <button class="btn btn-primary" style="flex:2" onclick="saveBeanProfile()">Save</button>`;
+
+  document.getElementById('drawerBackdrop').classList.add('open');
+  setTimeout(() => document.getElementById('drawer').classList.add('open'), 10);
+}
+
+function saveBeanProfile() {
+  const name = _activeBeanProfile;
+  if (!name) return;
+  if (!beanMeta[name]) beanMeta[name] = {};
+  const notes = document.getElementById('bpNotes')?.value.trim();
+  const roastDate = document.getElementById('bpRoastDate')?.value;
+  const price = document.getElementById('bpPrice')?.value;
+  if (notes !== undefined) beanMeta[name].notes = notes;
+  if (roastDate !== undefined) beanMeta[name].roastDate = roastDate;
+  if (price !== undefined) beanMeta[name].price = price ? parseFloat(price) : null;
+  saveMeta();
+  closeDrawer();
+  renderBeanLibrary();
+  toast('Bean updated', true);
+}
+
+function confirmDeleteBean() {
+  const name = _activeBeanProfile;
+  if (!name) return;
+  const shotCount = shots.filter(s => s.bean === name).length;
+  showModal(
+    `Delete "${name}"?`,
+    `This will delete the bean profile and all ${shotCount} logged shot${shotCount!==1?'s':''} for this bean. This cannot be undone.`,
+    () => {
+      shots = shots.filter(s => s.bean !== name);
+      delete beanMeta[name];
+      save(); saveMeta(); closeDrawer(); renderBeanLibrary();
+      toast(`"${name}" deleted`);
+    }
+  );
+  // Change confirm button to red
+  setTimeout(() => {
+    const btn = document.getElementById('modalConfirm');
+    if (btn) { btn.textContent = 'Delete bean'; }
+  }, 10);
+}
+
+function updateBeanPhoto(name, input) {
+  const beanName = name || _activeBeanProfile;
+  if (!beanName) return;
+  const file = input.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = new Image();
+    img.onload = () => {
+      const MAX = 400;
+      const scale = Math.min(MAX/img.width, MAX/img.height, 1);
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+      if (!beanMeta[beanName]) beanMeta[beanName] = {};
+      beanMeta[beanName].photo = dataUrl;
+      saveMeta();
+      // Update preview in drawer
+      const existing = document.querySelector('.bean-profile-photo, .bean-profile-photo-empty');
+      if (existing) {
+        const wrapper = existing.parentElement;
+        wrapper.innerHTML = `<img class="bean-profile-photo" src="${dataUrl}" alt="bean"><button class="bean-profile-edit-photo" onclick="document.getElementById('bpPhotoInput').click()">Change photo</button>`;
+      }
+      renderBeanLibrary();
+      toast('Photo updated', true);
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
 }
 
 /* ════════════════════════════════════════════
@@ -975,6 +1266,7 @@ function startLogging() {
 }
 
 function renderPrevSession(name, bShots, container, last) {
+  const meta = beanMeta[name] || {};
   const rows = bShots.slice(0,5).map(s => {
     const v = verdictInfo(s);
     const d = new Date(s.date).toLocaleDateString('en-GB',{day:'2-digit',month:'short'});
@@ -995,13 +1287,34 @@ function renderPrevSession(name, bShots, container, last) {
   const adjustNote = last.adjustNotes
     ? `<div class="prev-adjust">📝 Next time: ${last.adjustNotes}</div>` : '';
 
-  // "Same as last time" quick-fill button
   const sameBtn = `<button class="same-params-btn" onclick="fillSameAsLast(${last.id})">↩ Use last shot's parameters</button>`;
+
+  // Roast age for header
+  let roastBadge = '';
+  if (meta.roastDate) {
+    const rd = Math.floor((Date.now()-new Date(meta.roastDate))/86400000);
+    const rcls = rd<=14?'roast-fresh':rd<=30?'roast-good':'roast-old';
+    roastBadge = `<span class="roast-age-badge ${rcls}" style="margin-left:6px">${rd<=0?'Just roasted':rd+'d roast'}</span>`;
+  }
+
+  // Photo or icon
+  const photoEl = meta.photo
+    ? `<img src="${meta.photo}" style="width:40px;height:40px;border-radius:8px;object-fit:cover;border:1px solid var(--border2);flex-shrink:0">`
+    : `<div style="width:40px;height:40px;border-radius:8px;background:var(--bg4);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">☕</div>`;
 
   container.innerHTML = `<div class="prev-card">
     <div class="prev-card-head">
-      <span class="prev-card-label">Previous sessions</span>
-      <span class="bc-date">${bShots.length} shot${bShots.length!==1?'s':''}</span>
+      <div style="display:flex;align-items:center;gap:10px">
+        ${photoEl}
+        <div>
+          <div style="font-size:14px;font-weight:500;color:var(--cream);line-height:1.2">${name}</div>
+          <div style="display:flex;align-items:center;gap:4px;margin-top:2px">
+            <span class="prev-card-label" style="margin:0">Previous sessions</span>
+            ${roastBadge}
+          </div>
+        </div>
+      </div>
+      <span class="bc-date" style="flex-shrink:0">${bShots.length} shot${bShots.length!==1?'s':''}</span>
     </div>
     ${rows}
     ${adjustNote}
@@ -1238,6 +1551,64 @@ function toggleExact() {
   document.getElementById('exactToggle').classList.toggle('open');
   document.getElementById('exactFields').classList.toggle('open');
 }
+
+/* ── Brew timer ── */
+function toggleTimer() {
+  if (_timerRunning) {
+    // Stop — save elapsed time to brewTime field
+    clearInterval(_timerInterval);
+    _timerRunning = false;
+    const elapsed = Math.round((Date.now() - _timerStart) / 1000);
+    const btEl = document.getElementById('brewTime');
+    if (btEl && !btEl.value) {
+      btEl.value = elapsed;
+      onPTInput(); // auto-update matrix selection
+    }
+    document.getElementById('timerBtn').textContent = '↺ Reset';
+    document.getElementById('timerBtn').style.color = 'var(--good-text)';
+    document.getElementById('timerVal').style.color = 'var(--good-text)';
+  } else if (document.getElementById('timerBtn').textContent.includes('Reset')) {
+    // Reset
+    _timerStart = null;
+    _timerRunning = false;
+    document.getElementById('timerVal').textContent = '0:00';
+    document.getElementById('timerVal').style.color = 'var(--text2)';
+    document.getElementById('timerBtn').textContent = '▶ Start';
+    document.getElementById('timerBtn').style.color = '';
+  } else {
+    // Start
+    _timerStart = Date.now();
+    _timerRunning = true;
+    document.getElementById('timerBtn').textContent = '■ Stop';
+    document.getElementById('timerBtn').style.color = 'var(--danger-text)';
+    document.getElementById('timerVal').style.color = 'var(--text)';
+    _timerInterval = setInterval(() => {
+      const elapsed = Math.round((Date.now() - _timerStart) / 1000);
+      const m = Math.floor(elapsed / 60);
+      const s = elapsed % 60;
+      const display = `${m}:${String(s).padStart(2,'0')}`;
+      const el = document.getElementById('timerVal');
+      if (el) {
+        el.textContent = display;
+        // Color code: green in target range, amber outside
+        if (elapsed >= 30 && elapsed <= 45) el.style.color = 'var(--good-text)';
+        else if (elapsed > 45) el.style.color = 'var(--warn-text)';
+        else el.style.color = 'var(--text)';
+      } else {
+        clearInterval(_timerInterval); // form was cleared
+      }
+    }, 250);
+  }
+}
+
+function resetTimer() {
+  if (_timerInterval) clearInterval(_timerInterval);
+  _timerInterval = null; _timerStart = null; _timerRunning = false;
+  const tv = document.getElementById('timerVal');
+  const tb = document.getElementById('timerBtn');
+  if (tv) { tv.textContent = '0:00'; tv.style.color = 'var(--text2)'; }
+  if (tb) { tb.textContent = '▶ Start'; tb.style.color = ''; }
+}
 function onPTInput() {
   const p = parseFloat(document.getElementById('pressure').value)||0;
   const t = parseInt(document.getElementById('brewTime').value)||0;
@@ -1350,6 +1721,7 @@ function clearForm() {
   const ef=document.getElementById('exactFields'); if(ef)ef.classList.remove('open');
   document.getElementById('grindRec').style.display='none';
   document.getElementById('grindHint').textContent='\u00a0';
+  resetTimer();
   renderBeanLibrary();
   window.scrollTo(0,0);
 }
@@ -1549,7 +1921,10 @@ function confirmDelete(id){
   showModal('Delete this shot?','This cannot be undone.',()=>{shots=shots.filter(s=>s.id!==id);save();closeDrawer();renderHistory();toast('Shot deleted');});
 }
 function confirmClearAll(){
-  showModal('Delete ALL data?','Permanently delete all '+shots.length+' shots.',()=>{shots=[];save();toast('All data cleared');});
+  showModal('Delete ALL data?','Permanently delete all '+shots.length+' shots and bean data.',()=>{
+    shots=[]; beanMeta={};
+    save(); saveMeta(); renderBeanLibrary(); toast('All data cleared');
+  });
 }
 function showModal(title,msg,fn){
   document.getElementById('modalTitle').textContent=title;
@@ -1564,9 +1939,10 @@ function closeModal(){document.getElementById('modalBackdrop').classList.remove(
    EXPORT / IMPORT
 ════════════════════════════════════════════ */
 function exportData(){
-  if(!shots.length){toast('No data to export');return;}
+  if(!shots.length && !Object.keys(beanMeta).length){toast('No data to export');return;}
+  const data = { shots, beanMeta };
   const a=document.createElement('a');
-  a.href=URL.createObjectURL(new Blob([JSON.stringify(shots,null,2)],{type:'application/json'}));
+  a.href=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));
   a.download='flair-brew-log-'+new Date().toISOString().slice(0,10)+'.json';
   a.click(); toast('Exported!',true);
 }
@@ -1576,12 +1952,17 @@ function importData(input){
   r.onload=e=>{
     try{
       const imp=JSON.parse(e.target.result);
-      if(!Array.isArray(imp)) throw 0;
+      // Support both old format (array) and new format ({shots, beanMeta})
+      const impShots = Array.isArray(imp) ? imp : (imp.shots || []);
+      const impMeta  = Array.isArray(imp) ? {} : (imp.beanMeta || {});
       const ids=new Set(shots.map(s=>s.id));
-      const newS=imp.filter(s=>!ids.has(s.id));
+      const newS=impShots.filter(s=>!ids.has(s.id));
       shots=[...shots,...newS].sort((a,b)=>b.id-a.id);
-      save(); renderBeanLibrary(); toast(newS.length+' shots imported!',true); input.value='';
-    }catch{toast('Import failed — invalid file');}
+      // Merge beanMeta (imported wins on conflict)
+      Object.assign(beanMeta, impMeta);
+      save(); saveMeta(); renderBeanLibrary();
+      toast(newS.length+' shots imported!',true); input.value='';
+    }catch(err){toast('Import failed — invalid file'); console.error(err);}
   };
   r.readAsText(file);
 }
